@@ -1,0 +1,95 @@
+// ==========================================
+// TENANT DATABASE SCHEMA
+// This is the schema template that will be run on EVERY tenant DB
+// ==========================================
+
+log: "Migrating Tenant DB: " + $TARGET_DB
+
+// 1. USERS TABLE
+db.execute: "CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) UNIQUE NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role VARCHAR(20) DEFAULT 'cashier',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)" { db: $TARGET_DB }
+
+// 2. PRODUCTS TABLE
+db.execute: "CREATE TABLE IF NOT EXISTS products (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(50) UNIQUE NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    price DECIMAL(15,2) NOT NULL,
+    stock INT DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)" { db: $TARGET_DB }
+
+// 3. SALES HEADER
+db.execute: "CREATE TABLE IF NOT EXISTS sales (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    invoice_number VARCHAR(50) UNIQUE NOT NULL,
+    user_id INT NOT NULL,
+    total_amount DECIMAL(15,2) DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'completed',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_sales_created_at (created_at),
+    INDEX idx_sales_user_id (user_id),
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE RESTRICT
+)" { db: $TARGET_DB }
+
+// 4. SALE ITEMS
+db.execute: "CREATE TABLE IF NOT EXISTS sale_items (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    sale_id INT NOT NULL,
+    product_id INT NOT NULL,
+    quantity INT NOT NULL,
+    price_at_sale DECIMAL(15,2) NOT NULL,
+    subtotal DECIMAL(15,2) NOT NULL,
+    INDEX idx_sale_items_sale_id (sale_id),
+    INDEX idx_sale_items_product_id (product_id),
+    FOREIGN KEY (sale_id) REFERENCES sales(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE RESTRICT
+)" { db: $TARGET_DB }
+
+log: "✓ Database schema created with indexes and foreign keys"
+
+
+// ==========================================
+// SEEDER (Default Data per Tenant)
+// ==========================================
+
+// CLEANUP: Delete old admin data (if any) to ensure fresh data is inserted correctly
+db.execute: "DELETE FROM users WHERE email = 'admin@pos.com'" { db: $TARGET_DB }
+
+db.table: users { db: $TARGET_DB }
+db.where: {
+    col: "email"
+    val: "admin@pos.com"
+}
+db.count: { as: $admin_count }
+
+if: $admin_count == 0 {
+    then: {
+        // Generate Hash
+        crypto.hash: "password" { as: $hash }
+        
+        // Create admin name (Concat string)
+        strings.concat {
+            val: "Admin "
+            val: $TARGET_DB
+            as: $admin_name
+        }
+
+        db.table: users { db: $TARGET_DB }
+        db.insert: {
+            name: $admin_name
+            email: "admin@pos.com"
+            password: $hash
+            role: "admin"
+        }
+        log: "Seeded Admin User for " + $TARGET_DB
+    }
+}
+
+log: "Migration Completed for " + $TARGET_DB

@@ -1,0 +1,114 @@
+// ==========================================
+// TASK LIST - View All Tasks
+// ==========================================
+// Displays tasks with filtering, search, and pagination
+// Using separate tutorial database
+
+system.env: "JWT_SECRET" { as: $jwt_secret }
+coalesce: $jwt_secret { default: "ZENOLANG_DEMO_SECRET_KEY_2026"; as: $jwt_secret }
+
+http.get: /tutorial/max/tasks {
+  do: {
+    // Require authentication
+    auth.middleware: {
+      secret: $jwt_secret
+      redirect: "/tutorial/max/login"
+      do: {
+        // Get current user
+        auth.user: { as: $current_user }
+        
+        // Get filter parameters
+        http.query: "status" { as: $filter_status }
+        http.query: "priority" { as: $filter_priority }
+        http.query: "search" { as: $search_term }
+        http.query: "page" { as: $page }
+        
+        // Default page to 1
+        coalesce: $page { default: "1"; as: $page }
+        cast.to_int: $page { as: $page }
+        
+        // Calculate pagination
+        var: $per_page { val: 10 }
+        math.calc: ($page - 1) * $per_page { as: $offset }
+        
+        // Build query
+        db.table: tutorial_tasks
+          db: tutorial
+        
+        // Apply filters
+        isset: $filter_status {
+          do: {
+            db.where: { col: status, val: $filter_status }
+          }
+        }
+        
+        isset: $filter_priority {
+          do: {
+            db.where: { col: priority, val: $filter_priority }
+          }
+        }
+        
+        isset: $search_term {
+          do: {
+            db.where: { col: title, op: "LIKE", val: "%" + $search_term + "%" }
+          }
+        }
+        
+        // Get total count for pagination
+        db.count: { as: $total_tasks }
+        
+        // Get tasks with pagination
+        db.table: tutorial_tasks
+          db: tutorial
+        
+        // Re-apply filters for actual query
+        isset: $filter_status {
+          do: {
+            db.where: { col: status, val: $filter_status }
+          }
+        }
+        
+        isset: $filter_priority {
+          do: {
+            db.where: { col: priority, val: $filter_priority }
+          }
+        }
+        
+        isset: $search_term {
+          do: {
+            db.where: { col: title, op: "LIKE", val: "%" + $search_term + "%" }
+          }
+        }
+        
+        db.order_by: "created_at DESC"
+        db.limit: $per_page
+        db.offset: $offset
+        db.get: { as: $tasks }
+        
+        // Calculate total pages
+        math.calc: ceil($total_tasks / $per_page) { as: $total_pages }
+        
+        // Get teams for filter dropdown
+        db.table: tutorial_teams
+          db: tutorial
+        db.get: { as: $teams }
+        
+        // Render view
+        view.blade: "tutorial/max/tasks/index.blade.zl" {
+          tasks: $tasks
+          teams: $teams
+          current_user: $current_user
+          filter_status: $filter_status
+          filter_priority: $filter_priority
+          search_term: $search_term
+          current_page: $page
+          total_pages: $total_pages
+          total_tasks: $total_tasks
+          title: "Task Management"
+        }
+      }
+    }
+  }
+}
+
+log: "✅ Task list route loaded (using tutorial database)"
