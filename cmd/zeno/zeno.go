@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -400,9 +401,24 @@ func startServer(appCtx *app.AppContext, cancelWorker context.CancelFunc, worker
 		Handler: rootMux, // Use Root Mux instead of Hot directly
 	}
 
+	// Start Listener first to catch "port in use" error cleanly
+	ln, err := net.Listen("tcp", port)
+	if err != nil {
+		fmt.Println("\n" + strings.Repeat("=", 60))
+		fmt.Println("❌ GAGAL MENJALANKAN SERVER")
+		fmt.Println(strings.Repeat("=", 60))
+		fmt.Printf("Error: Port %s sudah digunakan oleh aplikasi lain.\n", port)
+		fmt.Println("\nSaran Perbaikan:")
+		fmt.Println("1. Pastikan tidak ada instance ZenoEngine lain yang berjalan.")
+		fmt.Println("2. Gunakan perintah 'lsof -i " + port + "' untuk cek aplikasi yang memakai port ini.")
+		fmt.Println("3. Ubah APP_PORT di file .env jika ingin menggunakan port lain.")
+		fmt.Println(strings.Repeat("=", 60) + "\n")
+		os.Exit(1)
+	}
+
 	go func() {
 		slog.Info("🚀 Engine Ready", "port", port)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 			slog.Error("❌ Listen failed", "error", err)
 			os.Exit(1)
 		}
