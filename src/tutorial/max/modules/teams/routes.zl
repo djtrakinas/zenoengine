@@ -22,9 +22,12 @@ http.get: /tutorial/max/teams {
               db: tutorial
             }
         db.get: { as: $teams }
+        len: $teams { as: $teams_count }
+        dump: $teams_count
         
         view.blade: "tutorial/max/teams/index.blade.zl" {
           teams: $teams
+          teams_count: $teams_count
           current_user: $current_user
           title: "Teams"
         }
@@ -47,6 +50,8 @@ http.post: /tutorial/max/teams/store {
         http.form: "name" { as: $name }
         http.form: "description" { as: $description }
         
+// REMOVED dump
+        
         validate: {
           name: $name
         } {
@@ -63,18 +68,16 @@ http.post: /tutorial/max/teams/store {
             }
           }
           else: {
-            db.table: tutorial_teams
+            db.table: tutorial_teams {
               db: tutorial
+            }
             db.insert: {
               name: $name
               description: $description
-              owner_id: $current_user.id
+              owner_id: $current_user.user_id
             }
             
-            http.created: {
-              message: "Team created successfully"
-              redirect: "/tutorial/max/teams"
-            }
+            http.redirect: "/tutorial/max/teams"
           }
         }
       }
@@ -98,36 +101,50 @@ http.post: '/tutorial/max/teams/:id/delete' {
             db.table: tutorial_teams {
               db: tutorial
             }
-        db.where: { col: id, val: $team_id }
+        db.where: {
+
+          col: "id"
+
+          val: $team_id
+
+        }
         db.first: { as: $team }
         
         isset: $team {
           do: {
             // Check if user is owner or admin
-            if: $team.owner_id == $current_user.id {
+            if: $team.owner_id == $current_user.user_id {
               then: {
-                db.table: tutorial_teams
+                db.table: tutorial_teams {
                   db: tutorial
-                db.where: { col: id, val: $team_id }
+                }
+                db.where: {
+
+                  col: "id"
+
+                  val: $team_id
+
+                }
                 db.delete: {}
                 
-                http.ok: {
-                  message: "Team deleted successfully"
-                  redirect: "/tutorial/max/teams"
-                }
+                http.redirect: "/tutorial/max/teams"
               }
               else: {
                 if: $current_user.role == "admin" {
                   then: {
-                    db.table: tutorial_teams
+                    db.table: tutorial_teams {
                       db: tutorial
-                    db.where: { col: id, val: $team_id }
+                    }
+                    db.where: {
+
+                      col: "id"
+
+                      val: $team_id
+
+                    }
                     db.delete: {}
                     
-                    http.ok: {
-                      message: "Team deleted successfully"
-                      redirect: "/tutorial/max/teams"
-                    }
+                    http.redirect: "/tutorial/max/teams"
                   }
                   else: {
                     http.forbidden: {

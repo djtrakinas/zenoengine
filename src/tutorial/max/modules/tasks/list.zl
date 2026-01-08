@@ -21,15 +21,43 @@ http.get: /tutorial/max/tasks {
         http.query: "status" { as: $filter_status }
         http.query: "priority" { as: $filter_priority }
         http.query: "search" { as: $search_term }
-        http.query: "page" { as: $page }
+        http.query: "page" { as: $page_param }
         
-        // Default page to 1
-        coalesce: $page { default: "1"; as: $page }
-        cast.to_int: $page { as: $page }
+        // Sanitize filters (empty string -> nil)
+        if: $filter_status == "" { 
+            then: { 
+                var: $filter_status { val: nil } 
+            }
+        }
+        if: $filter_priority == "" { 
+            then: { 
+                var: $filter_priority { val: nil } 
+            }
+        }
+        if: $search_term == "" { 
+            then: { 
+                var: $search_term { val: nil } 
+            }
+        }
+        
+        // Default page logic
+        var: $page { val: 1 }
+        
+        if: $page_param != "" && $page_param != nil {
+             then: {
+                 cast.to_int: $page_param { as: $page_int }
+                 if: $page_int > 0 {
+                      then: {
+                          var: $page { val: $page_int }
+                      }
+                 }
+             }
+        }
         
         // Calculate pagination
         var: $per_page { val: 10 }
         math.calc: ($page - 1) * $per_page { as: $offset }
+        cast.to_int: $offset { as: $offset }
         
         // Build query
         db.table: tutorial_tasks {
@@ -38,21 +66,19 @@ http.get: /tutorial/max/tasks {
         
         // Apply filters
         isset: $filter_status {
-          do: {
-            db.where: { col: status, val: $filter_status }
+          then: {
+             db.where: { col: "status"; val: $filter_status }
           }
         }
-        
         isset: $filter_priority {
-          do: {
-            db.where: { col: priority, val: $filter_priority }
+          then: {
+             db.where: { col: "priority"; val: $filter_priority }
           }
         }
-        
         isset: $search_term {
-          do: {
-            db.where: { col: title, op: "LIKE", val: "%" + $search_term + "%" }
-          }
+           then: {
+             db.where: { col: "title"; op: "LIKE"; val: "%" + $search_term + "%" }
+           }
         }
         
         // Get total count for pagination
@@ -63,29 +89,28 @@ http.get: /tutorial/max/tasks {
           db: tutorial
         }
         
-        // Re-apply filters for actual query
+        // Re-apply filters
         isset: $filter_status {
-          do: {
-            db.where: { col: status, val: $filter_status }
+          then: {
+             db.where: { col: "status"; val: $filter_status }
           }
         }
-        
         isset: $filter_priority {
-          do: {
-            db.where: { col: priority, val: $filter_priority }
+          then: {
+             db.where: { col: "priority"; val: $filter_priority }
           }
         }
-        
         isset: $search_term {
-          do: {
-            db.where: { col: title, op: "LIKE", val: "%" + $search_term + "%" }
-          }
+           then: {
+             db.where: { col: "title"; op: "LIKE"; val: "%" + $search_term + "%" }
+           }
         }
         
         db.order_by: "created_at DESC"
         db.limit: $per_page
         db.offset: $offset
         db.get: { as: $tasks }
+        len: $tasks { as: $tasks_count }
         
         // Calculate total pages
         math.calc: ceil($total_tasks / $per_page) { as: $total_pages }
@@ -99,6 +124,7 @@ http.get: /tutorial/max/tasks {
         // Render view
         view.blade: "tutorial/max/tasks/index.blade.zl" {
           tasks: $tasks
+          tasks_count: $tasks_count
           teams: $teams
           current_user: $current_user
           filter_status: $filter_status

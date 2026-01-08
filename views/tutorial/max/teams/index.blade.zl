@@ -8,32 +8,35 @@
     </div>
     
     <div class="teams-grid">
-        @forelse($teams as $team)
-            <div class="team-card">
-                <div class="team-header">
-                    <h3>{{ $team.name }}</h3>
-                    @if($team.owner_id == $current_user.id || $current_user.role == 'admin')
-                        <form action="/tutorial/max/teams/{{ $team.id }}/delete" method="POST" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this team?')">Delete</button>
-                        </form>
+        @if($teams_count > 0)
+            @foreach($teams as $team)
+                <div class="team-card">
+                    <div class="team-header">
+                        <h3>{{ $team.name }}</h3>
+                        @if($team.owner_id == $current_user.user_id || $current_user.role == 'admin')
+                            <form action="/tutorial/max/teams/{{ $team.id }}/delete" method="POST" style="display: inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this team?')">Delete</button>
+                            </form>
+                        @endif
+                    </div>
+                    
+                    @if($team.description)
+                        <p class="team-description">{{ $team.description }}</p>
                     @endif
+                    
+                    <div class="team-meta">
+                        <span>👤 Owner ID: {{ $team.owner_id }}</span>
+                    </div>
                 </div>
-                
-                @if($team.description)
-                    <p class="team-description">{{ $team.description }}</p>
-                @endif
-                
-                <div class="team-meta">
-                    <span>👤 Owner ID: {{ $team.owner_id }}</span>
-                </div>
-            </div>
-        @empty
+            @endforeach
+        @else
             <div class="empty-state">
                 <h3>No teams yet</h3>
                 <p>Create your first team to get started!</p>
                 <button onclick="showCreateTeamModal()" class="btn btn-primary">Create Team</button>
             </div>
-        @endforelse
+        @endif
     </div>
 </div>
 
@@ -46,6 +49,7 @@
         </div>
         
         <form action="/tutorial/max/teams/store" method="POST">
+            @csrf
             <div class="form-group">
                 <label for="name">Team Name *</label>
                 <input type="text" id="name" name="name" class="form-control" required>

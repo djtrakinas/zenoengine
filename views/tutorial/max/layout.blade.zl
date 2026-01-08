@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/tutorial/max/css/app.css">
+    <link rel="stylesheet" href="/public/tutorial/max/css/app.css">
 </head>
 <body>
     @auth
@@ -28,6 +28,7 @@
                     @endif
                     
                     <form action="/tutorial/max/auth/logout" method="POST" style="display: inline;">
+                        @csrf
                         <button type="submit" class="btn btn-sm btn-outline">Logout</button>
                     </form>
                 </div>
@@ -40,6 +41,6 @@
         @yield('content')
     </main>
     
-    <script src="/tutorial/max/js/app.js"></script>
+    <script src="/public/tutorial/max/js/app.js"></script>
 </body>
 </html>

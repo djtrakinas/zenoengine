@@ -26,6 +26,9 @@ func RegisterValidatorSlots(eng *engine.Engine) {
 			}
 		}
 
+		// Prepare implicit data map
+		implicitData := make(map[string]interface{})
+
 		for _, c := range node.Children {
 			val := parseNodeValue(c, scope)
 
@@ -33,15 +36,26 @@ func RegisterValidatorSlots(eng *engine.Engine) {
 				if m, ok := val.(map[string]interface{}); ok {
 					inputData = m
 				}
+				continue
 			}
 			if c.Name == "rules" {
 				if m, ok := val.(map[string]interface{}); ok {
 					rules = m
 				}
+				continue
 			}
 			if c.Name == "as" {
 				target = strings.TrimPrefix(coerce.ToString(c.Value), "$")
+				continue
 			}
+
+			// Treat other children as data fields
+			implicitData[c.Name] = val
+		}
+
+		// Merge implicit data if inputData is still nil
+		if inputData == nil {
+			inputData = implicitData
 		}
 
 		if inputData == nil {

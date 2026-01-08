@@ -21,23 +21,33 @@ http.post: '/tutorial/max/tasks/:id/delete' {
             db.table: tutorial_tasks {
               db: tutorial
             }
-            db.where: { col: id, val: $task_id }
+            db.where: {
+
+              col: "id"
+
+              val: $task_id
+
+            }
             db.first: { as: $task }
             
             isset: $task {
               do: {
                 // Delete task (cascade will handle notifications)
-                db.table: tutorial_tasks
+                db.table: tutorial_tasks {
                   db: tutorial
-                db.where: { col: id, val: $task_id }
+                }
+                db.where: {
+
+                  col: "id"
+
+                  val: $task_id
+
+                }
                 db.delete: {}
                 
                 log: "✅ Task deleted: " + $task.title
                 
-                http.ok: {
-                  message: "Task deleted successfully"
-                  redirect: "/tutorial/max/tasks"
-                }
+                http.redirect: "/tutorial/max/tasks"
               }
             }
             

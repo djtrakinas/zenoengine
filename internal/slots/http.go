@@ -82,7 +82,7 @@ func RegisterHTTPServerSlots(eng *engine.Engine) {
 		}
 
 		http.Redirect(w, r, url, http.StatusFound)
-		return nil
+		return ErrReturn
 	}, engine.SlotMeta{Example: "http.redirect: '/home'"})
 
 	// 3. COOKIE.SET

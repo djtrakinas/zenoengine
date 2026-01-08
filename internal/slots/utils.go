@@ -38,6 +38,19 @@ func parseNodeValue(n *engine.Node, scope *engine.Scope) interface{} {
 
 	// 3. BARU CEK VARIABLE ($)
 	if strings.HasPrefix(valStr, "$") {
+		// [NEW] Support Null Coalesce: $var ?? 'default'
+		if strings.Contains(valStr, "??") {
+			parts := strings.SplitN(valStr, "??", 2)
+			v1 := strings.TrimSpace(parts[0])
+			v2 := strings.TrimSpace(parts[1])
+
+			res1 := parseNodeValue(&engine.Node{Value: v1}, scope)
+			if res1 != nil && fmt.Sprintf("%v", res1) != "" && fmt.Sprintf("%v", res1) != "<nil>" {
+				return res1
+			}
+			return parseNodeValue(&engine.Node{Value: v2}, scope)
+		}
+
 		key := strings.TrimPrefix(valStr, "$")
 		// fmt.Println("DEBUG RESOLVE:", key)
 

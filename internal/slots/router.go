@@ -3,6 +3,7 @@ package slots
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -97,7 +98,12 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 
 			requestObj["method"] = r.Method
 			requestObj["url"] = r.URL.String()
+			requestObj["path"] = r.URL.Path
 			requestObj["body"] = bodyData
+
+			// Shortcut variables
+			reqScope.Set("path", r.URL.Path)
+			reqScope.Set("method", r.Method)
 
 			// Add headers as map
 			headersMap := engine.GetMap()
@@ -140,7 +146,7 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 			if err != nil {
 				timeout = 30 * time.Second // Fallback to 30s if parsing fails
 			}
-			
+
 			// Create timeout context
 			timeoutCtx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
@@ -152,6 +158,11 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 			// 8. Execute Children (Route Logic) - Auth already injected from Chi middleware
 			for _, child := range children {
 				if err := eng.Execute(timeoutCtx, child, reqScope); err != nil {
+					// [NEW] Handle ErrReturn (Normal Halt)
+					if errors.Is(err, ErrReturn) || strings.Contains(err.Error(), "return") {
+						return
+					}
+
 					// Check if error is due to timeout
 					if timeoutCtx.Err() == context.DeadlineExceeded {
 						http.Error(w, fmt.Sprintf("Request timeout exceeded (%s)", timeout), http.StatusRequestTimeout)

@@ -124,12 +124,17 @@ func main() {
 	}
 
 	// 5. WATCHER (Hot Reload for .zl files)
-	if appEnv == "development" {
+	// Only enable if explicitly in dev mode AND not disabled via env
+	liveReloadEnabled := appEnv == "development" && os.Getenv("LIVERELOAD_ENABLED") != "false"
+
+	if liveReloadEnabled {
 		go startWatcher(appCtx)
+	} else {
+		slog.Info("🚫 Live Reload Disabled")
 	}
 
 	// 6. HTTP SERVER
-	startServer(appCtx, cancelWorker, &workerWG)
+	startServer(appCtx, cancelWorker, &workerWG, liveReloadEnabled)
 }
 
 // --- HELPER FUNCTIONS ---
@@ -376,7 +381,7 @@ func validateAllScripts() error {
 	return nil
 }
 
-func startServer(appCtx *app.AppContext, cancelWorker context.CancelFunc, workerWG *sync.WaitGroup) {
+func startServer(appCtx *app.AppContext, cancelWorker context.CancelFunc, workerWG *sync.WaitGroup, liveReloadEnabled bool) {
 	port := os.Getenv("APP_PORT")
 	if port == "" {
 		port = ":3000"
@@ -386,14 +391,14 @@ func startServer(appCtx *app.AppContext, cancelWorker context.CancelFunc, worker
 	rootMux := http.NewServeMux()
 
 	// 1. Live Reload (Safe, no lock)
-	if appCtx.Env == "development" {
+	if liveReloadEnabled {
 		rootMux.Handle("/livereload", livereload.Instance)
 	}
 
 	// 2. Main App (Hot Swap, RLock protected)
 	// Wrap with live reload injection middleware in development
 	var mainHandler http.Handler = appCtx.Hot
-	if appCtx.Env == "development" {
+	if liveReloadEnabled {
 		mainHandler = livereload.InjectMiddleware(appCtx.Hot)
 	}
 	rootMux.Handle("/", mainHandler)

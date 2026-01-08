@@ -16,15 +16,16 @@ func SecurityHeaders(next http.Handler) http.Handler {
 		w.Header().Set("X-Content-Type-Options", "nosniff")
 		w.Header().Set("Referrer-Policy", "strict-origin-when-cross-origin")
 
-		// --- PRODUCTION ONLY HEADERS (HSTS & CSP) ---
-		// Logika: Disable CSP jika sedang development agar tidak memblokir:
-		// - Live Reload (WebSocket)
-		// - Source Maps (.map files)
-		// - Library CDN (Bootstrap/Tailwind/Vue)
+		// --- PRODUCTION ONLY HEADERS (HSTS) ---
 		if os.Getenv("APP_ENV") == "production" {
 			// 1. Strict Transport Security (Force HTTPS)
 			w.Header().Set("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload")
+		}
 
+		// --- OPTIONAL CSP (Disabled by Default) ---
+		// Enable only if CSP_ENABLED is "true" or "enable" in .env
+		cspEnv := os.Getenv("CSP_ENABLED")
+		if cspEnv == "true" || cspEnv == "enable" {
 			// 2. Content Security Policy (CSP)
 			// Kita buat dinamis agar production tetap fleksibel via .env
 			defaultDomains := "https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.googleapis.com https://fonts.gstatic.com"

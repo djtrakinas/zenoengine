@@ -208,4 +208,38 @@ func RegisterCollectionSlots(eng *engine.Engine) {
 		scope.Set(target, keys)
 		return nil
 	}, engine.SlotMeta{Example: "map.keys: $user\n  as: $fields"})
+	// LEN
+	eng.Register("len", func(ctx context.Context, node *engine.Node, scope *engine.Scope) error {
+		var val interface{}
+		target := "len"
+
+		// Value dari main node? e.g. len: $var
+		if node.Value != nil {
+			val = resolveValue(node.Value, scope)
+		}
+
+		for _, c := range node.Children {
+			if c.Name == "as" {
+				target = strings.TrimPrefix(coerce.ToString(c.Value), "$")
+			}
+			if c.Name == "in" || c.Name == "list" || c.Name == "val" || c.Name == "value" {
+				val = parseNodeValue(c, scope)
+			}
+		}
+
+		var length int64 = 0
+
+		if val == nil {
+			length = 0
+		} else if str, ok := val.(string); ok {
+			length = int64(len(str))
+		} else if slice, err := coerce.ToSlice(val); err == nil {
+			length = int64(len(slice))
+		} else if m, ok := val.(map[string]interface{}); ok {
+			length = int64(len(m))
+		}
+
+		scope.Set(target, length)
+		return nil
+	}, engine.SlotMeta{Example: "len: $my_list { as: $count }"})
 }

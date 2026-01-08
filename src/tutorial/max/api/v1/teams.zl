@@ -14,8 +14,9 @@ http.get: /api/v1/teams {
     auth.middleware: {
       secret: $jwt_secret
       do: {
-        db.table: tutorial_teams
+        db.table: tutorial_teams {
           db: tutorial
+        }
         db.get: { as: $teams }
         
         http.ok: {
@@ -55,19 +56,27 @@ http.post: /api/v1/teams {
             }
           }
           else: {
-            db.table: tutorial_teams
+            db.table: tutorial_teams {
               db: tutorial
+            }
             db.insert: {
               name: $name
               description: $description
-              owner_id: $current_user.id
+              owner_id: $current_user.user_id
             }
             
             var: $team_id { val: $db_last_id }
             
-            db.table: tutorial_teams
+            db.table: tutorial_teams {
               db: tutorial
-            db.where: { col: id, val: $team_id }
+            }
+            db.where: {
+
+              col: "id"
+
+              val: $team_id
+
+            }
             db.first: { as: $created_team }
             
             http.created: {

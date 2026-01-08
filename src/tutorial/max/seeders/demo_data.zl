@@ -128,8 +128,9 @@ db.transaction: {
     }
     
     // Task 4: Low priority task
-    db.table: tutorial_tasks
+    db.table: tutorial_tasks {
       db: tutorial
+    }
     db.insert: {
       title: "Update Documentation"
       description: "Update API documentation with latest endpoints"
@@ -177,8 +178,9 @@ db.transaction: {
       is_read: 0
     }
     
-    db.table: tutorial_notifications
+    db.table: tutorial_notifications {
       db: tutorial
+    }
     db.insert: {
       user_id: $admin_id
       type: "task_completed"

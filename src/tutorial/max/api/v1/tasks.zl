@@ -31,13 +31,15 @@ http.get: /api/v1/tasks {
         math.calc: ($page - 1) * $per_page { as: $offset }
         
         // Get total count
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.count: { as: $total }
         
         // Get tasks
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.order_by: "created_at DESC"
         db.limit: $per_page
         db.offset: $offset
@@ -97,8 +99,9 @@ http.post: /api/v1/tasks {
           }
           else: {
             // Insert task
-            db.table: tutorial_tasks
+            db.table: tutorial_tasks {
               db: tutorial
+            }
             db.insert: {
               title: $title
               description: $description
@@ -112,9 +115,16 @@ http.post: /api/v1/tasks {
             var: $task_id { val: $db_last_id }
             
             // Get created task
-            db.table: tutorial_tasks
+            db.table: tutorial_tasks {
               db: tutorial
-            db.where: { col: id, val: $task_id }
+            }
+            db.where: {
+
+              col: "id"
+
+              val: $task_id
+
+            }
             db.first: { as: $created_task }
             
             http.created: {
@@ -138,9 +148,16 @@ http.get: '/api/v1/tasks/:id' {
       do: {
         http.param: "id" { as: $task_id }
         
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
-        db.where: { col: id, val: $task_id }
+        }
+        db.where: {
+
+          col: "id"
+
+          val: $task_id
+
+        }
         db.first: { as: $task }
         
         isset: $task {
@@ -179,9 +196,16 @@ http.put: '/api/v1/tasks/:id' {
         http.form: "status" { as: $status }
         
         // Update task
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
-        db.where: { col: id, val: $task_id }
+        }
+        db.where: {
+
+          col: "id"
+
+          val: $task_id
+
+        }
         db.update: {
           title: $title
           description: $description
@@ -190,9 +214,16 @@ http.put: '/api/v1/tasks/:id' {
         }
         
         // Get updated task
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
-        db.where: { col: id, val: $task_id }
+        }
+        db.where: {
+
+          col: "id"
+
+          val: $task_id
+
+        }
         db.first: { as: $updated_task }
         
         http.ok: {
@@ -214,9 +245,16 @@ http.delete: '/api/v1/tasks/:id' {
       do: {
         http.param: "id" { as: $task_id }
         
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
-        db.where: { col: id, val: $task_id }
+        }
+        db.where: {
+
+          col: "id"
+
+          val: $task_id
+
+        }
         db.delete: {}
         
         http.ok: {

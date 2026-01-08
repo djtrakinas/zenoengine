@@ -21,25 +21,40 @@ http.post: '/tutorial/max/tasks/:id/complete' {
             date.now: { as: $now; format: "RFC3339" }
             
             // Update task status
-            db.table: tutorial_tasks
+            db.table: tutorial_tasks {
               db: tutorial
-            db.where: { col: id, val: $task_id }
+            }
+            db.where: {
+
+              col: "id"
+
+              val: $task_id
+
+            }
             db.update: {
               status: "completed"
               completed_at: $now
             }
             
             // Get task details for notification
-            db.table: tutorial_tasks
+            db.table: tutorial_tasks {
               db: tutorial
-            db.where: { col: id, val: $task_id }
+            }
+            db.where: {
+
+              col: "id"
+
+              val: $task_id
+
+            }
             db.first: { as: $task }
             
             // Create notification for assigned user
             isset: $task.assigned_to {
               do: {
-                db.table: tutorial_notifications
+                db.table: tutorial_notifications {
                   db: tutorial
+                }
                 db.insert: {
                   user_id: $task.assigned_to
                   type: "task_completed"
@@ -51,10 +66,7 @@ http.post: '/tutorial/max/tasks/:id/complete' {
             
             log: "✅ Task completed: " + $task.title
             
-            http.ok: {
-              message: "Task marked as completed"
-              redirect: "/tutorial/max/tasks"
-            }
+            http.redirect: "/tutorial/max/tasks"
           }
           catch: {
             http.server_error: {

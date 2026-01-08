@@ -30,51 +30,55 @@
     </div>
     
     <div class="tasks-grid">
-        @forelse($tasks as $task)
-            <div class="task-card priority-{{ $task.priority }}">
-                <div class="task-card-header">
-                    <h3>{{ $task.title }}</h3>
-                    <div class="task-badges">
-                        <span class="badge badge-{{ $task.priority }}">{{ $task.priority }}</span>
-                        <span class="badge badge-{{ $task.status }}">{{ $task.status }}</span>
+        @if($tasks_count > 0)
+            @foreach($tasks as $task)
+                <div class="task-card priority-{{ $task.priority }}">
+                    <div class="task-card-header">
+                        <h3>{{ $task.title }}</h3>
+                        <div class="task-badges">
+                            <span class="badge badge-{{ $task.priority }}">{{ $task.priority }}</span>
+                            <span class="badge badge-{{ $task.status }}">{{ $task.status }}</span>
+                        </div>
                     </div>
-                </div>
-                
-                <p class="task-description">{{ $task.description }}</p>
-                
-                @if($task.due_date)
-                    <div class="task-meta">
-                        <span>📅 Due: {{ $task.due_date }}</span>
-                    </div>
-                @endif
-                
-                @if($task.attachment)
-                    <div class="task-meta">
-                        <span>📎 Has attachment</span>
-                    </div>
-                @endif
-                
-                <div class="task-actions">
-                    <a href="/tutorial/max/tasks/{{ $task.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
                     
-                    @if($task.status != 'completed')
-                        <form action="/tutorial/max/tasks/{{ $task.id }}/complete" method="POST" style="display: inline;">
-                            <button type="submit" class="btn btn-sm btn-success">Complete</button>
-                        </form>
+                    <p class="task-description">{{ $task.description }}</p>
+                    
+                    @if($task.due_date)
+                        <div class="task-meta">
+                            <span>📅 Due: {{ $task.due_date }}</span>
+                        </div>
                     @endif
                     
-                    <form action="/tutorial/max/tasks/{{ $task.id }}/delete" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task?')">Delete</button>
-                    </form>
+                    @if($task.attachment)
+                        <div class="task-meta">
+                            <span>📎 Has attachment</span>
+                        </div>
+                    @endif
+                    
+                    <div class="task-actions">
+                        <a href="/tutorial/max/tasks/{{ $task.id }}/edit" class="btn btn-sm btn-secondary">Edit</a>
+                        
+                        @if($task.status != 'completed')
+                            <form action="/tutorial/max/tasks/{{ $task.id }}/complete" method="POST" style="display: inline;">
+                                @csrf
+                                <button type="submit" class="btn btn-sm btn-success">Complete</button>
+                            </form>
+                        @endif
+                        
+                        <form action="/tutorial/max/tasks/{{ $task.id }}/delete" method="POST" style="display: inline;">
+                            @csrf
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Delete this task?')">Delete</button>
+                        </form>
+                    </div>
                 </div>
-            </div>
-        @empty
+            @endforeach
+        @else
             <div class="empty-state">
                 <h3>No tasks found</h3>
                 <p>Create your first task to get started!</p>
                 <a href="/tutorial/max/tasks/create" class="btn btn-primary">Create Task</a>
             </div>
-        @endforelse
+        @endif
     </div>
     
     @if($total_pages > 1)

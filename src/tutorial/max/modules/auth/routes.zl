@@ -51,9 +51,8 @@ http.post: /tutorial/max/auth/login {
     
     if: $errors_any {
       then: {
-        http.validation_error: { 
-          errors: $errors
-          message: "Invalid input data"
+        view.blade: "tutorial/max/auth/login.blade.zl" {
+          error: "Validation failed. Please check your inputs."
         }
       }
       else: {
@@ -81,18 +80,13 @@ http.post: /tutorial/max/auth/login {
             // Get user data
             auth.user: { as: $user }
             
-            log: "✅ User logged in: " + $user.email
+            log: "✅ User login attempt successful"
             
-            http.ok: {
-              message: "Login successful"
-              token: $token
-              user: $user
-              redirect: "/tutorial/max/dashboard"
-            }
+            http.redirect: "/tutorial/max/dashboard"
           }
           catch: {
-            http.unauthorized: {
-              message: "Invalid email or password"
+            view.blade: "tutorial/max/auth/login.blade.zl" {
+              error: "Invalid email or password"
             }
           }
         }
@@ -148,24 +142,31 @@ http.post: /tutorial/max/auth/register {
     
     if: $errors_any {
       then: {
-        http.validation_error: { 
+        view.blade: "tutorial/max/auth/register.blade.zl" {
+          error: "Validation failed. Please check your inputs."
           errors: $errors
-          message: "Invalid registration data"
         }
       }
       else: {
         try: {
           do: {
             // Check if email already exists
-            db.table: tutorial_users
+            db.table: tutorial_users {
               db: tutorial
-            db.where: { col: email, val: $email }
+            }
+            db.where: {
+
+              col: "email"
+
+              val: $email
+
+            }
             db.first: { as: $existing_user }
             
             isset: $existing_user {
               do: {
-                http.validation_error: {
-                  message: "Email already registered"
+                view.blade: "tutorial/max/auth/register.blade.zl" {
+                  error: "Email already registered"
                 }
               }
             }
@@ -192,8 +193,9 @@ http.post: /tutorial/max/auth/register {
             }
             
             // Insert new user
-            db.table: tutorial_users
+            db.table: tutorial_users {
               db: tutorial
+            }
             db.insert: {
               username: $username
               email: $email
@@ -204,7 +206,7 @@ http.post: /tutorial/max/auth/register {
             
             var: $user_id { val: $db_last_id }
             
-            log: "✅ New user registered: " + $email
+            log: "✅ New user registration attempt successful"
             
             // Auto-login after registration
             auth.login: {
@@ -225,15 +227,11 @@ http.post: /tutorial/max/auth/register {
               age: 86400
             }
             
-            http.created: {
-              message: "Registration successful"
-              token: $token
-              redirect: "/tutorial/max/dashboard"
-            }
+            http.redirect: "/tutorial/max/dashboard"
           }
           catch: {
-            http.server_error: {
-              message: "Registration failed: " + $error
+            view.blade: "tutorial/max/auth/register.blade.zl" {
+              error: "Registration failed: " + $error
             }
           }
         }
@@ -254,10 +252,7 @@ http.post: /tutorial/max/auth/logout {
       age: 0
     }
     
-    http.ok: {
-      message: "Logged out successfully"
-      redirect: "/tutorial/max/login"
-    }
+    http.redirect: "/tutorial/max/login"
   }
 }
 

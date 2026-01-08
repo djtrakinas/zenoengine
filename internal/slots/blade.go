@@ -29,6 +29,13 @@ type cachedTemplate struct {
 	modTime time.Time
 }
 
+func ensureBladeExt(path string) string {
+	if !strings.HasSuffix(path, ".blade.zl") {
+		return path + ".blade.zl"
+	}
+	return path
+}
+
 func RegisterBladeSlots(eng *engine.Engine) {
 	RegisterLogicSlots(eng)
 
@@ -95,7 +102,7 @@ func RegisterBladeSlots(eng *engine.Engine) {
 			return fmt.Errorf("view.blade.native: file required")
 		}
 
-		fullPath := filepath.Join("views", viewFile)
+		fullPath := filepath.Join("views", ensureBladeExt(viewFile))
 
 		// Use cache for performance
 		programNode, err := getCachedOrParse(fullPath)
@@ -158,7 +165,7 @@ func RegisterBladeSlots(eng *engine.Engine) {
 			return fmt.Errorf("view.extends: file required")
 		}
 
-		fullPath := filepath.Join("views", layoutFile)
+		fullPath := filepath.Join("views", ensureBladeExt(layoutFile))
 
 		// Use cache for performance
 		layoutRoot, err := getCachedOrParse(fullPath)
@@ -249,7 +256,7 @@ func RegisterBladeSlots(eng *engine.Engine) {
 			return nil
 		}
 
-		fullPath := filepath.Join("views", viewFile)
+		fullPath := filepath.Join("views", ensureBladeExt(viewFile))
 
 		// Parse Child Data
 		var includeData map[string]interface{}

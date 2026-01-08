@@ -19,20 +19,29 @@ http.get: '/tutorial/max/tasks/:id/edit' {
         http.param: "id" { as: $task_id }
         
         // Get task
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
-        db.where: { col: id, val: $task_id }
+        }
+        db.where: {
+
+          col: "id"
+
+          val: $task_id
+
+        }
         db.first: { as: $task }
         
         isset: $task {
           do: {
             // Get teams and users
-            db.table: tutorial_teams
+            db.table: tutorial_teams {
               db: tutorial
+            }
             db.get: { as: $teams }
             
-            db.table: tutorial_users
+            db.table: tutorial_users {
               db: tutorial
+            }
             db.get: { as: $users }
             
             view.blade: "tutorial/max/tasks/edit.blade.zl" {
@@ -104,9 +113,16 @@ http.post: '/tutorial/max/tasks/:id/update' {
             try: {
               do: {
                 // Get existing task
-                db.table: tutorial_tasks
+                db.table: tutorial_tasks {
                   db: tutorial
-                db.where: { col: id, val: $task_id }
+                }
+                db.where: {
+
+                  col: "id"
+
+                  val: $task_id
+
+                }
                 db.first: { as: $existing_task }
                 
                 isset: $existing_task {
@@ -129,9 +145,16 @@ http.post: '/tutorial/max/tasks/:id/update' {
                     }
                     
                     // Update task
-                    db.table: tutorial_tasks
+                    db.table: tutorial_tasks {
                       db: tutorial
-                    db.where: { col: id, val: $task_id }
+                    }
+                    db.where: {
+
+                      col: "id"
+
+                      val: $task_id
+
+                    }
                     db.update: {
                       title: $title
                       description: $description
@@ -145,10 +168,7 @@ http.post: '/tutorial/max/tasks/:id/update' {
                     
                     log: "✅ Task updated: " + $title
                     
-                    http.ok: {
-                      message: "Task updated successfully"
-                      redirect: "/tutorial/max/tasks"
-                    }
+                    http.redirect: "/tutorial/max/tasks"
                   }
                 }
                 

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 	"zeno/pkg/dbmanager"
@@ -66,8 +67,9 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 			return fmt.Errorf("auth.login: database connection '%s' not found", dbName)
 		}
 
-		query := fmt.Sprintf("SELECT %s, %s, %s FROM %s WHERE %s = %s%s",
+		query := fmt.Sprintf("SELECT %s, %s, %s, %s FROM %s WHERE %s = %s%s",
 			dialect.QuoteIdentifier("id"),
+			dialect.QuoteIdentifier("username"),
 			dialect.QuoteIdentifier(colUser),
 			dialect.QuoteIdentifier(colPass),
 			dialect.QuoteIdentifier(table),
@@ -75,24 +77,34 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 			dialect.Placeholder(1),
 			dialect.Limit(1, 0))
 
-		var id int
-		var dbUser, dbPass string
+		fmt.Printf("[AUTH DEBUG] Query: %s\n", query)
+		fmt.Printf("[AUTH DEBUG] Username: %s, Table: %s, DB: %s\n", username, table, dbName)
 
-		err := db.QueryRowContext(ctx, query, username).Scan(&id, &dbUser, &dbPass)
+		var id int
+		var dbUsername, dbUser, dbPass string
+
+		err := db.QueryRowContext(ctx, query, username).Scan(&id, &dbUsername, &dbUser, &dbPass)
 		if err != nil {
+			fmt.Printf("[AUTH DEBUG] DB Query Error: %v\n", err)
 			return fmt.Errorf("auth.login: invalid credentials")
 		}
+
+		fmt.Printf("[AUTH DEBUG] User found: ID=%d, Username=%s, Email=%s\n", id, dbUsername, dbUser)
 
 		// Verify Password
 		if err := bcrypt.CompareHashAndPassword([]byte(dbPass), []byte(password)); err != nil {
+			fmt.Printf("[AUTH DEBUG] Password mismatch: %v\n", err)
 			return fmt.Errorf("auth.login: invalid credentials")
 		}
 
+		fmt.Printf("[AUTH DEBUG] Password verified successfully\n")
+
 		// Generate JWT
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-			"user_id": id,
-			"email":   dbUser,
-			"exp":     time.Now().Add(time.Hour * 72).Unix(),
+			"user_id":  id,
+			"username": dbUsername,
+			"email":    dbUser,
+			"exp":      time.Now().Add(time.Hour * 72).Unix(),
 		})
 
 		tokenString, err := token.SignedString([]byte(jwtSecret))
@@ -177,8 +189,10 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 		authHeader := r.Header.Get("Authorization")
 
 		if authHeader == "" {
-			// Support Cookie fallback
+			// Support Cookie fallback (check 'token' or 'auth_token')
 			if cookie, err := r.Cookie("token"); err == nil {
+				authHeader = "Bearer " + cookie.Value
+			} else if cookie, err := r.Cookie("auth_token"); err == nil {
 				authHeader = "Bearer " + cookie.Value
 			}
 		}
@@ -196,7 +210,7 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 				wVal := ctx.Value("httpWriter")
 				if w, ok := wVal.(http.ResponseWriter); ok {
 					http.Redirect(w, r, redirectURL, http.StatusFound)
-					return nil // Stop execution, but no error (handled)
+					return ErrReturn // Stop execution
 				}
 			}
 			return fmt.Errorf("unauthorized: missing token")
@@ -212,7 +226,7 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 				wVal := ctx.Value("httpWriter")
 				if w, ok := wVal.(http.ResponseWriter); ok {
 					http.Redirect(w, r, redirectURL, http.StatusFound)
-					return nil // Stop execution
+					return ErrReturn // Stop execution
 				}
 			}
 			return fmt.Errorf("unauthorized: invalid token")
@@ -277,9 +291,41 @@ func RegisterAuthSlots(eng *engine.Engine, dbMgr *dbmanager.DBManager) {
 
 		if val, ok := scope.Get("session"); ok {
 			scope.Set(target, val)
-		} else {
-			scope.Set(target, nil)
+			return nil
 		}
+
+		// Fallback: Check cookies and decode JWT
+		reqVal := ctx.Value("httpRequest")
+		if req, ok := reqVal.(*http.Request); ok {
+			var tokenString string
+			if cookie, err := req.Cookie("auth_token"); err == nil {
+				tokenString = cookie.Value
+			} else if cookie, err := req.Cookie("token"); err == nil {
+				tokenString = cookie.Value
+			}
+
+			if tokenString != "" {
+				// We need the secret. Since it's not passed here, we use the default
+				// or we could try to find it from env.
+				jwtSecret := os.Getenv("JWT_SECRET")
+				if jwtSecret == "" {
+					jwtSecret = "rahasia_dapur_pekalongan_kota_2025_!@#_jgn_disebar"
+				}
+
+				token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+					return []byte(jwtSecret), nil
+				})
+
+				if err == nil && token.Valid {
+					if claims, ok := token.Claims.(jwt.MapClaims); ok {
+						scope.Set(target, claims)
+						return nil
+					}
+				}
+			}
+		}
+
+		scope.Set(target, nil)
 		return nil
 	}, engine.SlotMeta{
 		Description: "Retrieve user data from current session.",

@@ -60,35 +60,39 @@
     <div class="dashboard-content">
         <div class="dashboard-section">
             <h2>My Tasks</h2>
-            @forelse($my_tasks as $task)
-                <div class="task-item priority-{{ $task.priority }}">
-                    <div class="task-header">
-                        <h4>{{ $task.title }}</h4>
-                        <span class="badge badge-{{ $task.status }}">{{ $task.status }}</span>
+            @if($my_tasks_count > 0)
+                @foreach($my_tasks as $task)
+                    <div class="task-item priority-{{ $task.priority }}">
+                        <div class="task-header">
+                            <h4>{{ $task.title }}</h4>
+                            <span class="badge badge-{{ $task.status }}">{{ $task.status }}</span>
+                        </div>
+                        <p>{{ $task.description }}</p>
+                        @if($task.due_date)
+                            <small>Due: {{ $task.due_date }}</small>
+                        @endif
                     </div>
-                    <p>{{ $task.description }}</p>
-                    @if($task.due_date)
-                        <small>Due: {{ $task.due_date }}</small>
-                    @endif
-                </div>
-            @empty
+                @endforeach
+            @else
                 <p class="empty-state">No tasks assigned to you</p>
-            @endforelse
+            @endif
         </div>
         
         <div class="dashboard-section">
             <h2>Recent Activity</h2>
-            @forelse($recent_tasks as $task)
-                <div class="activity-item">
-                    <div class="activity-icon">📝</div>
-                    <div class="activity-content">
-                        <p><strong>{{ $task.title }}</strong></p>
-                        <small>{{ $task.status }} - {{ $task.created_at }}</small>
+            @if($recent_tasks_count > 0)
+                @foreach($recent_tasks as $task)
+                    <div class="activity-item">
+                        <div class="activity-icon">📝</div>
+                        <div class="activity-content">
+                            <p><strong>{{ $task.title }}</strong></p>
+                            <small>{{ $task.status }} - {{ $task.created_at }}</small>
+                        </div>
                     </div>
-                </div>
-            @empty
+                @endforeach
+            @else
                 <p class="empty-state">No recent activity</p>
-            @endforelse
+            @endif
         </div>
     </div>
 </div>

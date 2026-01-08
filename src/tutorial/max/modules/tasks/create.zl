@@ -19,13 +19,15 @@ http.get: /tutorial/max/tasks/create {
         auth.user: { as: $current_user }
         
         // Get teams for dropdown
-        db.table: tutorial_teams
+        db.table: tutorial_teams {
           db: tutorial
+        }
         db.get: { as: $teams }
         
         // Get users for assignment
-        db.table: tutorial_users
+        db.table: tutorial_users {
           db: tutorial
+        }
         db.get: { as: $users }
         
         view.blade: "tutorial/max/tasks/create.blade.zl" {
@@ -107,8 +109,9 @@ http.post: /tutorial/max/tasks/store {
                   db: tutorial
                   do: {
                     // Insert task
-                    db.table: tutorial_tasks
+                    db.table: tutorial_tasks {
                       db: tutorial
+                    }
                     db.insert: {
                       title: $title
                       description: $description
@@ -125,8 +128,9 @@ http.post: /tutorial/max/tasks/store {
                     // Create notification if assigned
                     isset: $assigned_to {
                       do: {
-                        db.table: tutorial_notifications
+                        db.table: tutorial_notifications {
                           db: tutorial
+                        }
                         db.insert: {
                           user_id: $assigned_to
                           type: "task_assigned"

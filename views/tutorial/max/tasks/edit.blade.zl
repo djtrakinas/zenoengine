@@ -9,6 +9,7 @@
     
     <div class="form-container">
         <form action="/tutorial/max/tasks/{{ $task.id }}/update" method="POST" enctype="multipart/form-data">
+            @csrf
             <div class="form-group">
                 <label for="title">Task Title *</label>
                 <input type="text" id="title" name="title" class="form-control" value="{{ $task.title }}" required>

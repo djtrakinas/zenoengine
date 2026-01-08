@@ -6,19 +6,30 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 	"zeno/pkg/engine"
 	"zeno/pkg/utils/coerce"
+
+	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
 	ErrBreak    = errors.New("break")
 	ErrContinue = errors.New("continue")
+	ErrReturn   = errors.New("return")
 )
 
 func RegisterLogicSlots(eng *engine.Engine) {
+	// ==========================================
+	// SLOT: RETURN / STOP
+	// ==========================================
+	eng.Register("return", func(ctx context.Context, node *engine.Node, scope *engine.Scope) error {
+		return ErrReturn
+	}, engine.SlotMeta{Description: "Halt execution of the current block/handler."})
+
 	// ==========================================
 	// SLOT: SCOPE SET (Legacy alias for 'var')
 	// ==========================================
@@ -239,6 +250,10 @@ func RegisterLogicSlots(eng *engine.Engine) {
 		if doNode != nil {
 			for _, child := range doNode.Children {
 				if err := eng.Execute(ctx, child, scope); err != nil {
+					// DON'T catch control flow errors (return, break, continue)
+					if errors.Is(err, ErrReturn) || errors.Is(err, ErrBreak) || errors.Is(err, ErrContinue) {
+						return err
+					}
 					if catchNode != nil {
 						scope.Set(errVar, err.Error())
 						return eng.Execute(ctx, catchNode, scope)
@@ -755,6 +770,36 @@ func RegisterLogicSlots(eng *engine.Engine) {
 		if !isAuth {
 			authObj, ok := scope.Get("auth")
 			isAuth = ok && authObj != nil
+		}
+
+		// Fallback: Check and VERIFY cookies if not in scope
+		if !isAuth {
+			reqVal := ctx.Value("httpRequest")
+			if req, ok := reqVal.(*http.Request); ok {
+				var tokenString string
+				if cookie, err := req.Cookie("auth_token"); err == nil {
+					tokenString = cookie.Value
+				} else if cookie, err := req.Cookie("token"); err == nil {
+					tokenString = cookie.Value
+				}
+
+				// VERIFY the token, not just check existence
+				if tokenString != "" {
+					jwtSecret := os.Getenv("JWT_SECRET")
+					if jwtSecret == "" {
+						jwtSecret = "ZENOLANG_DEMO_SECRET_KEY_2026"
+					}
+
+					token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+						return []byte(jwtSecret), nil
+					})
+
+					// Only set isAuth to true if token is VALID
+					if err == nil && token.Valid {
+						isAuth = true
+					}
+				}
+			}
 		}
 		scope.Set(target, isAuth)
 		return nil

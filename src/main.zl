@@ -14,10 +14,24 @@ include: src/tutorial/max/main.zl
 // 404 Handler
 http.get: /* {
   do: {
-    // If accessing root, redirect to max gallery or dashboard
-    if ($path == "/") {
+    // If accessing root, /max, or /max/, redirect to the tutorial dashboard
+    if: $path == "/" {
         then: {
-             http.redirect: "/max/"
+             http.redirect: "/tutorial/max"
+             return
+        }
+    }
+
+    if: $path == "/max" {
+        then: {
+             http.redirect: "/tutorial/max"
+             return
+        }
+    }
+
+    if: $path == "/max/" {
+        then: {
+             http.redirect: "/tutorial/max"
              return
         }
     }

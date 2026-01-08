@@ -29,8 +29,20 @@ http.get: /tutorial/max/notifications/stream {
               db.table: tutorial_notifications {
                 db: tutorial
               }
-              db.where: { col: user_id, val: $current_user.id }
-              db.where: { col: is_read, val: 0 }
+              db.where: {
+
+                col: "user_id"
+
+                val: $current_user.user_id
+
+              }
+              db.where: {
+
+                col: "is_read"
+
+                val: 0
+
+              }
               db.order_by: "created_at DESC"
               db.limit: 10
               db.get: { as: $notifications }
@@ -76,8 +88,20 @@ http.post: '/tutorial/max/notifications/:id/read' {
         db.table: tutorial_notifications {
           db: tutorial
         }
-        db.where: { col: id, val: $notif_id }
-        db.where: { col: user_id, val: $current_user.id }
+        db.where: {
+
+          col: "id"
+
+          val: $notif_id
+
+        }
+        db.where: {
+
+          col: "user_id"
+
+          val: $current_user.user_id
+
+        }
         db.update: {
           is_read: 1
         }
