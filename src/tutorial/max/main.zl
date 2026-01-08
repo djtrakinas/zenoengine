@@ -64,6 +64,7 @@ include: src/tutorial/max/modules/realtime/dashboard.zl
 // ==========================================
 include: src/tutorial/max/api/v1/tasks.zl
 include: src/tutorial/max/api/v1/teams.zl
+include: src/tutorial/max/api/v1/test_token.zl
 
 // ==========================================
 // 9. BACKGROUND JOBS CONFIGURATION
@@ -76,9 +77,9 @@ log: "🌐 Visit: http://localhost:3000/tutorial/max"
 log: "📚 API Endpoints:"
 log: "   - GET    /api/v1/tasks"
 log: "   - POST   /api/v1/tasks"
-log: "   - GET    /api/v1/tasks/:id"
-log: "   - PUT    /api/v1/tasks/:id"
-log: "   - DELETE /api/v1/tasks/:id"
+log: "   - GET    /api/v1/tasks/{id}"
+log: "   - PUT    /api/v1/tasks/{id}"
+log: "   - DELETE /api/v1/tasks/{id}"
 log: "   - GET    /api/v1/teams"
 log: "   - POST   /api/v1/teams"
 log: ""
