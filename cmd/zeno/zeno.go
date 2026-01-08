@@ -185,27 +185,67 @@ func initDB() *dbmanager.DBManager {
 	// 3. Auto-detect additional DBs
 	envVars := os.Environ()
 	detectedDBs := make(map[string]bool)
+	suffixes := []string{"_DRIVER", "_HOST", "_NAME", "_USER", "_PASS"}
+
 	for _, env := range envVars {
 		parts := strings.SplitN(env, "=", 2)
 		key := parts[0]
-		if strings.HasPrefix(key, "DB_") && strings.HasSuffix(key, "_HOST") {
-			if key == "DB_HOST" {
-				continue
+		if !strings.HasPrefix(key, "DB_") {
+			continue
+		}
+
+		// Skip primary DB keys
+		isPrimary := false
+		for _, s := range suffixes {
+			if key == "DB"+s {
+				isPrimary = true
+				break
 			}
-			dbName := strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(key, "DB_"), "_HOST"))
-			if dbName != "" {
-				detectedDBs[dbName] = true
+		}
+		if isPrimary || key == "DB_MAX_OPEN_CONNS" || key == "DB_MAX_IDLE_CONNS" {
+			continue
+		}
+
+		// Check if it's an additional DB key
+		for _, s := range suffixes {
+			if strings.HasSuffix(key, s) {
+				dbName := strings.ToLower(strings.TrimSuffix(strings.TrimPrefix(key, "DB_"), s))
+				if dbName != "" {
+					detectedDBs[dbName] = true
+				}
+				break
 			}
 		}
 	}
+
 	for dbName := range detectedDBs {
 		prefix := "DB_" + strings.ToUpper(dbName) + "_"
-		// Additional DBs are assumed to be MySQL
-		dsn := fmt.Sprintf("%s:%s@tcp(%s)/%s", os.Getenv(prefix+"USER"), os.Getenv(prefix+"PASS"), os.Getenv(prefix+"HOST"), os.Getenv(prefix+"NAME"))
-		if err := dbMgr.AddConnection(dbName, "mysql", dsn, maxOpen, maxIdle); err != nil {
+		driver := os.Getenv(prefix + "DRIVER")
+		if driver == "" {
+			driver = "mysql" // Default fallback
+		}
+
+		var dsn string
+		host := os.Getenv(prefix + "HOST")
+		user := os.Getenv(prefix + "USER")
+		pass := os.Getenv(prefix + "PASS")
+		name := os.Getenv(prefix + "NAME")
+
+		if driver == "sqlite" {
+			dsn = name
+		} else if driver == "sqlserver" || driver == "mssql" {
+			dsn = fmt.Sprintf("sqlserver://%s:%s@%s?database=%s", user, pass, host, name)
+		} else if driver == "postgres" || driver == "postgresql" {
+			dsn = fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", user, pass, host, name)
+		} else {
+			// MySQL
+			dsn = fmt.Sprintf("%s:%s@tcp(%s)/%s", user, pass, host, name)
+		}
+
+		if err := dbMgr.AddConnection(dbName, driver, dsn, maxOpen, maxIdle); err != nil {
 			slog.Warn("⚠️  Failed to connect to database", "db", dbName, "error", err)
 		} else {
-			slog.Info("✅ Additional Database Connected!", "db", dbName)
+			slog.Info("✅ Additional Database Connected!", "db", dbName, "driver", driver)
 		}
 	}
 

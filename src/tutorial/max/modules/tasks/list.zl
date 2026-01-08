@@ -32,8 +32,9 @@ http.get: /tutorial/max/tasks {
         math.calc: ($page - 1) * $per_page { as: $offset }
         
         // Build query
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         
         // Apply filters
         isset: $filter_status {
@@ -58,8 +59,9 @@ http.get: /tutorial/max/tasks {
         db.count: { as: $total_tasks }
         
         // Get tasks with pagination
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         
         // Re-apply filters for actual query
         isset: $filter_status {
@@ -89,8 +91,9 @@ http.get: /tutorial/max/tasks {
         math.calc: ceil($total_tasks / $per_page) { as: $total_pages }
         
         // Get teams for filter dropdown
-        db.table: tutorial_teams
+        db.table: tutorial_teams {
           db: tutorial
+        }
         db.get: { as: $teams }
         
         // Render view

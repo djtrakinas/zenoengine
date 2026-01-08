@@ -15,43 +15,51 @@ http.get: /tutorial/max/dashboard {
         auth.user: { as: $current_user }
         
         // Get statistics
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.count: { as: $total_tasks }
         
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.where: { col: status, val: "completed" }
         db.count: { as: $completed_tasks }
         
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.where: { col: status, val: "in_progress" }
         db.count: { as: $in_progress_tasks }
         
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.where: { col: status, val: "pending" }
         db.count: { as: $pending_tasks }
         
-        db.table: tutorial_teams
+        db.table: tutorial_teams {
           db: tutorial
+        }
         db.count: { as: $total_teams }
         
-        db.table: tutorial_users
+        db.table: tutorial_users {
           db: tutorial
+        }
         db.count: { as: $total_users }
         
         // Get recent tasks
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.order_by: "created_at DESC"
         db.limit: 5
         db.get: { as: $recent_tasks }
         
         // Get user's assigned tasks
-        db.table: tutorial_tasks
+        db.table: tutorial_tasks {
           db: tutorial
+        }
         db.where: { col: assigned_to, val: $current_user.id }
         db.where: { col: status, op: "!=", val: "completed" }
         db.order_by: "due_date ASC"
@@ -59,8 +67,9 @@ http.get: /tutorial/max/dashboard {
         db.get: { as: $my_tasks }
         
         // Get unread notifications count
-        db.table: tutorial_notifications
+        db.table: tutorial_notifications {
           db: tutorial
+        }
         db.where: { col: user_id, val: $current_user.id }
         db.where: { col: is_read, val: 0 }
         db.count: { as: $unread_count }

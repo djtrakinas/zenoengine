@@ -18,8 +18,9 @@ include: src/tutorial/max/migrations/004_notifications.zl
 // ==========================================
 // 2. SEED DEMO DATA (Only if tables are empty)
 // ==========================================
-db.table: tutorial_users
+db.table: tutorial_users {
   db: tutorial
+}
 db.count: { as: $user_count }
 
 if: $user_count == 0 {

@@ -131,7 +131,7 @@ http.post: /api/v1/tasks {
 // ==========================================
 // 3. GET SINGLE TASK (GET /api/v1/tasks/:id)
 // ==========================================
-http.get: /api/v1/tasks/:id {
+http.get: '/api/v1/tasks/:id' {
   do: {
     auth.middleware: {
       secret: $jwt_secret
@@ -166,7 +166,7 @@ http.get: /api/v1/tasks/:id {
 // ==========================================
 // 4. UPDATE TASK (PUT /api/v1/tasks/:id)
 // ==========================================
-http.put: /api/v1/tasks/:id {
+http.put: '/api/v1/tasks/:id' {
   do: {
     auth.middleware: {
       secret: $jwt_secret
@@ -207,7 +207,7 @@ http.put: /api/v1/tasks/:id {
 // ==========================================
 // 5. DELETE TASK (DELETE /api/v1/tasks/:id)
 // ==========================================
-http.delete: /api/v1/tasks/:id {
+http.delete: '/api/v1/tasks/:id' {
   do: {
     auth.middleware: {
       secret: $jwt_secret

@@ -18,8 +18,9 @@ http.get: /tutorial/max/teams {
         auth.user: { as: $current_user }
         
         // Get all teams
-        db.table: tutorial_teams
-          db: tutorial
+            db.table: tutorial_teams {
+              db: tutorial
+            }
         db.get: { as: $teams }
         
         view.blade: "tutorial/max/teams/index.blade.zl" {
@@ -84,7 +85,7 @@ http.post: /tutorial/max/teams/store {
 // ==========================================
 // 3. DELETE TEAM
 // ==========================================
-http.post: /tutorial/max/teams/:id/delete {
+http.post: '/tutorial/max/teams/:id/delete' {
   do: {
     auth.middleware: {
       secret: $jwt_secret
@@ -94,8 +95,9 @@ http.post: /tutorial/max/teams/:id/delete {
         http.param: "id" { as: $team_id }
         
         // Get team
-        db.table: tutorial_teams
-          db: tutorial
+            db.table: tutorial_teams {
+              db: tutorial
+            }
         db.where: { col: id, val: $team_id }
         db.first: { as: $team }
         
