@@ -50,6 +50,8 @@ func main() {
 			cli.HandleMakeAuth()
 		case "key:generate":
 			cli.HandleKeyGenerate()
+		case "version":
+			cli.HandleVersion()
 		default:
 			// Automatically run if it ends with .zl
 			if strings.HasSuffix(cmd, ".zl") {
