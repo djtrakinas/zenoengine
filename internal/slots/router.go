@@ -11,6 +11,7 @@ import (
 	"time"
 	"zeno/pkg/apidoc"
 	"zeno/pkg/engine"
+	"zeno/pkg/engine/vm"
 	"zeno/pkg/middleware"
 	"zeno/pkg/utils/coerce"
 
@@ -157,22 +158,37 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 			// [NEW] 7. Inject Auth from Chi middleware context to ZenoLang scope
 			// This bridges native Chi middleware (MultiTenantAuth) to ZenoLang scope
 			middleware.InjectAuthToScope(r, reqScope)
+			// [NEW] 8. EXECUTION (ZenoVM with AST Fallback)
+			// Try to compile or get cached bytecode for this route
+			// NOTE: Compilation is fast, but in production we'd cache the Chunk.
+			compiler := vm.NewCompiler()
+			chunk, err := compiler.Compile(&engine.Node{Name: "root", Children: children})
 
-			// 8. Execute Children (Route Logic) - Auth already injected from Chi middleware
-			for _, child := range children {
-				if err := eng.Execute(timeoutCtx, child, reqScope); err != nil {
-					// [NEW] Handle ErrReturn (Normal Halt)
-					if errors.Is(err, ErrReturn) || strings.Contains(err.Error(), "return") {
-						return
+			if err == nil {
+				v := vm.NewVM()
+				err = v.Run(timeoutCtx, chunk, reqScope)
+			} else {
+				// Fallback to AST Walker if compiler fails
+				for _, child := range children {
+					if err = eng.Execute(timeoutCtx, child, reqScope); err != nil {
+						break
 					}
-
-					// Check if error is due to timeout
-					if timeoutCtx.Err() == context.DeadlineExceeded {
-						http.Error(w, fmt.Sprintf("Request timeout exceeded (%s)", timeout), http.StatusRequestTimeout)
-						return
-					}
-					panic(err) // Will be caught by recovery middleware
 				}
+			}
+
+			// Handle Errors
+			if err != nil {
+				// [NEW] Handle ErrReturn (Normal Halt)
+				if errors.Is(err, ErrReturn) || strings.Contains(err.Error(), "return") {
+					return
+				}
+
+				// Check if error is due to timeout
+				if timeoutCtx.Err() == context.DeadlineExceeded {
+					http.Error(w, fmt.Sprintf("Request timeout exceeded (%s)", timeout), http.StatusRequestTimeout)
+					return
+				}
+				panic(err) // Will be caught by recovery middleware
 			}
 		}
 	}
