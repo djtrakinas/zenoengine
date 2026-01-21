@@ -80,3 +80,26 @@ func PutBuffer(b []byte) {
 	// Reset length to 0, keep capacity
 	bufferPool.Put(b[:0])
 }
+
+// Pool for Arenas (Arena of Arenas)
+var arenaPool = sync.Pool{
+	New: func() interface{} {
+		// Pre-allocate 64KB for each arena.
+		// This is large enough for most web requests.
+		return NewArena(64 * 1024)
+	},
+}
+
+// GetArena retrieves an Arena from the pool.
+func GetArena() *Arena {
+	return arenaPool.Get().(*Arena)
+}
+
+// PutArena returns an Arena to the pool after resetting it.
+func PutArena(a *Arena) {
+	if a == nil {
+		return
+	}
+	a.Reset()
+	arenaPool.Put(a)
+}

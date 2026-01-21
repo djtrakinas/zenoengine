@@ -34,9 +34,12 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 	// Auth is handled by native Chi middleware, injected via context
 	createHandler := func(children []*engine.Node, baseScope *engine.Scope) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
-			// 1. Create Request Scope inheriting from Base Scope (FIX: Scope Parenting)
-			reqScope := engine.NewScope(baseScope)
-			// Variables from baseScope are now accessible via parent pointer
+			// 1. Get Arena from pool for this request
+			arena := engine.GetArena()
+			defer engine.PutArena(arena)
+
+			// 2. Create Request Scope in the Arena
+			reqScope := arena.AllocScope(baseScope)
 
 			// 2. Inject URL Params (e.g., /news/{id} -> $id)
 			rctx := chi.RouteContext(r.Context())
