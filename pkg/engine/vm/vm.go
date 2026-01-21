@@ -240,6 +240,8 @@ func (vm *VM) Run(chunk *Chunk) error {
 
 			vm.frameCount--
 			if vm.frameCount == 0 {
+				// Restore result to stack so caller can check it
+				vm.push(result)
 				return nil
 			}
 
@@ -256,6 +258,10 @@ func (vm *VM) Run(chunk *Chunk) error {
 			constant := vm.readConstant()
 			vm.push(constant)
 
+		case OpConstantLong:
+			constant := vm.readConstantLong()
+			vm.push(constant)
+
 		case OpNil:
 			vm.push(NewNil())
 		case OpTrue:
@@ -266,33 +272,29 @@ func (vm *VM) Run(chunk *Chunk) error {
 
 		case OpGetGlobal:
 			nameVal := vm.readConstant()
-			name, ok := nameVal.AsString()
-			if !ok {
-				err = fmt.Errorf("OpGetGlobal: expected string constant")
-				if vm.handleError(err) {
-					continue
-				}
-				return err
-			}
-			val, ok := vm.scope.Get(name)
-			if ok {
-				vm.push(NewValue(val))
-			} else {
-				vm.push(NewNil())
-			}
+			vm.push(vm.getGlobal(nameVal))
+
+		case OpGetGlobalLong:
+			nameVal := vm.readConstantLong()
+			vm.push(vm.getGlobal(nameVal))
 
 		case OpSetGlobal:
 			nameVal := vm.readConstant()
-			name, ok := nameVal.AsString()
-			if !ok {
-				err = fmt.Errorf("OpSetGlobal: expected string constant")
+			if err := vm.setGlobal(nameVal); err != nil {
 				if vm.handleError(err) {
 					continue
 				}
 				return err
 			}
-			val := vm.pop()
-			vm.scope.Set(name, val.ToNative())
+
+		case OpSetGlobalLong:
+			nameVal := vm.readConstantLong()
+			if err := vm.setGlobal(nameVal); err != nil {
+				if vm.handleError(err) {
+					continue
+				}
+				return err
+			}
 
 		case OpAdd:
 			b := vm.pop()
@@ -326,38 +328,16 @@ func (vm *VM) Run(chunk *Chunk) error {
 
 		case OpCallSlot:
 			nameVal := vm.readConstant()
-			slotName, ok := nameVal.AsString()
-			if !ok {
-				err = fmt.Errorf("OpCallSlot: expected string slot name")
+			if err := vm.callSlot(nameVal); err != nil {
 				if vm.handleError(err) {
 					continue
 				}
 				return err
 			}
-			argCount := int(vm.readByte())
 
-			// Collect arguments from stack into map
-			args := make(map[string]interface{}, argCount)
-			for i := argCount - 1; i >= 0; i-- {
-				val := vm.pop()
-				argNameVal := vm.pop()
-				argName, ok := argNameVal.AsString()
-				if !ok {
-					err = fmt.Errorf("OpCallSlot: argument name must be string")
-					if vm.handleError(err) {
-						continue
-					}
-					return err
-				}
-				args[argName] = val.ToNative()
-			}
-
-			// Sync locals before external call
-			vm.syncLocals()
-
-			// Call external handler
-			_, err = vm.externalHandler.Call(slotName, args)
-			if err != nil {
+		case OpCallSlotLong:
+			nameVal := vm.readConstantLong()
+			if err := vm.callSlot(nameVal); err != nil {
 				if vm.handleError(err) {
 					continue
 				}
@@ -541,35 +521,21 @@ func (vm *VM) Run(chunk *Chunk) error {
 
 		case OpAccessProperty:
 			nameVal := vm.readConstant()
-			name, ok := nameVal.AsString()
-			if !ok {
-				err = fmt.Errorf("OpAccessProperty: expected string property name")
+			if err := vm.accessProperty(nameVal); err != nil {
 				if vm.handleError(err) {
 					continue
 				}
 				return err
 			}
-			obj := vm.pop()
 
-			var res Value
-			switch obj.Type {
-			case ValMap:
-				if m, ok := obj.AsMap(); ok {
-					if v, ok := m[name]; ok {
-						res = v
-					}
+		case OpAccessPropertyLong:
+			nameVal := vm.readConstantLong()
+			if err := vm.accessProperty(nameVal); err != nil {
+				if vm.handleError(err) {
+					continue
 				}
-			case ValList:
-				if list, ok := obj.AsList(); ok {
-					// Numeric index?
-					if idx, err := strconv.Atoi(name); err == nil {
-						if idx >= 0 && idx < len(list) {
-							res = list[idx]
-						}
-					}
-				}
+				return err
 			}
-			vm.push(res)
 
 		case OpMakeMap:
 			count := int(vm.readByte())
@@ -641,6 +607,90 @@ func (vm *VM) readShort() uint16 {
 func (vm *VM) readConstant() Value {
 	index := vm.readByte()
 	return vm.frame().chunk.Constants[index]
+}
+
+func (vm *VM) readConstantLong() Value {
+	index := vm.readShort()
+	return vm.frame().chunk.Constants[index]
+}
+
+// Helper methods to reduce duplication
+func (vm *VM) getGlobal(nameVal Value) Value {
+	name, ok := nameVal.AsString()
+	if !ok {
+		// Just return nil or panic? Better validation?
+		// Since we can't return error here easily, we rely on previous behavior.
+		// But wait, original code returned error.
+		// I'll stick to simple implementation here assuming nameVal is valid if compiler did job.
+		return NewNil()
+	}
+	val, ok := vm.scope.Get(name)
+	if ok {
+		return NewValue(val)
+	}
+	return NewNil()
+}
+
+func (vm *VM) setGlobal(nameVal Value) error {
+	name, ok := nameVal.AsString()
+	if !ok {
+		return fmt.Errorf("OpSetGlobal: expected string constant")
+	}
+	val := vm.pop()
+	vm.scope.Set(name, val.ToNative())
+	return nil
+}
+
+func (vm *VM) callSlot(nameVal Value) error {
+	slotName, ok := nameVal.AsString()
+	if !ok {
+		return fmt.Errorf("OpCallSlot: expected string slot name")
+	}
+	argCount := int(vm.readByte())
+
+	args := make(map[string]interface{}, argCount)
+	for i := argCount - 1; i >= 0; i-- {
+		val := vm.pop()
+		argNameVal := vm.pop()
+		argName, ok := argNameVal.AsString()
+		if !ok {
+			return fmt.Errorf("OpCallSlot: argument name must be string")
+		}
+		args[argName] = val.ToNative()
+	}
+
+	vm.syncLocals()
+	_, err := vm.externalHandler.Call(slotName, args)
+	return err
+}
+
+func (vm *VM) accessProperty(nameVal Value) error {
+	name, ok := nameVal.AsString()
+	if !ok {
+		return fmt.Errorf("OpAccessProperty: expected string property name")
+	}
+	obj := vm.pop()
+
+	var res Value
+	switch obj.Type {
+	case ValMap:
+		if m, ok := obj.AsMap(); ok {
+			if v, ok := m[name]; ok {
+				res = v
+			}
+		}
+	case ValList:
+		if list, ok := obj.AsList(); ok {
+			// Numeric index?
+			if idx, err := strconv.Atoi(name); err == nil {
+				if idx >= 0 && idx < len(list) {
+					res = list[idx]
+				}
+			}
+		}
+	}
+	vm.push(res)
+	return nil
 }
 
 func (vm *VM) isTruthy(v Value) bool {

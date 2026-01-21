@@ -292,7 +292,11 @@ func (v Value) Serialize(w io.Writer) error {
 		}
 		return nil
 	case ValFunction:
-		return fmt.Errorf("cannot serialize function chunks as constants")
+		if v.functionVal == nil {
+			return fmt.Errorf("cannot serialize nil function chunk")
+		}
+		// Recursively serialize the function's Chunk
+		return v.functionVal.Serialize(w)
 	default:
 		return fmt.Errorf("unknown value type: %d", v.Type)
 	}
@@ -363,6 +367,13 @@ func DeserializeValue(r io.Reader) (Value, error) {
 			m[key] = val
 		}
 		return NewMap(m), nil
+	case ValFunction:
+		// Deserialize the function's Chunk
+		chunk, err := DeserializeChunk(r)
+		if err != nil {
+			return Value{}, err
+		}
+		return NewFunction(chunk), nil
 	default:
 		return Value{}, fmt.Errorf("unsupported value type: %d", vt)
 	}

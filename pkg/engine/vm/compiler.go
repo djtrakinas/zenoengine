@@ -85,8 +85,7 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 				// Map literal
 				for _, child := range node.Children {
 					// Push key
-					c.emitByte(byte(OpConstant))
-					c.emitByte(c.addConstant(NewString(child.Name)))
+					c.emitConstantOperand(OpConstant, c.addConstant(NewString(child.Name)))
 					// Push value (Force evaluation as data, not instruction)
 					if err := c.compileNodeAsValue(child); err != nil {
 						return err
@@ -114,8 +113,7 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 	if node.Name == "" && len(node.Children) > 0 {
 		for _, child := range node.Children {
 			// Push key
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewString(child.Name)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewString(child.Name)))
 			// Push value
 			if err := c.compileNodeAsValue(child); err != nil {
 				return err
@@ -159,12 +157,10 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 
 		// Emit Function Constant in CURRENT chunk
 		fnChunk := fnCompiler.chunk
-		c.emitByte(byte(OpConstant))
-		c.emitByte(c.addConstant(NewFunction(fnChunk)))
+		c.emitConstantOperand(OpConstant, c.addConstant(NewFunction(fnChunk)))
 
 		// Store in Global Variable
-		c.emitByte(byte(OpSetGlobal))
-		c.emitByte(c.addConstant(NewString(funcName)))
+		c.emitConstantOperand(OpSetGlobal, c.addConstant(NewString(funcName)))
 
 		return nil
 	}
@@ -201,8 +197,7 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 		}
 
 		// 1. Push Function (Get from Global)
-		c.emitByte(byte(OpGetGlobal))
-		c.emitByte(c.addConstant(NewString(funcName)))
+		c.emitConstantOperand(OpGetGlobal, c.addConstant(NewString(funcName)))
 
 		// 2. Compile arguments (Children)
 		argCount := 0
@@ -290,12 +285,10 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 			c.locals = append(c.locals, Local{Name: fmt.Sprintf("iter_list_%d", listLocalIdx), Depth: c.scopeDepth})
 
 			// 1. Push Initial Hidden Index (0)
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewNumber(0)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewNumber(0)))
 
 			// 2. Push Iterable
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewValue(slice)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewValue(slice)))
 
 			// 3. Mark Loop Start
 			loopStart := len(c.chunk.Code)
@@ -350,8 +343,7 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 		// [NEW] Handle implicit value (log: "msg")
 		if node.Value != nil {
 			// Push implicit key
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewString("__value__")))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewString("__value__")))
 			// Push value
 			// Compile value logic handles string/number/etc
 			if err := c.compileValue(node.Value); err != nil {
@@ -363,17 +355,14 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 		// Compile children as named arguments
 		for _, child := range node.Children {
 			// Push Name
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewString(child.Name)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewString(child.Name)))
 			// Push Value
 			if err := c.compileNodeAsValue(child); err != nil {
 				return err
 			}
 		}
 
-		c.emitByte(byte(OpCallSlot))
-		c.emitByte(c.addConstant(NewString(node.Name)))
-		c.emitByte(byte(argCount)) // Argument count
+		c.emitCallSlot(node.Name, argCount)
 		return nil
 	}
 
@@ -564,13 +553,11 @@ func (c *Compiler) compileValue(v interface{}) error {
 		return nil
 	}
 	if n, ok := v.(float64); ok {
-		c.emitByte(byte(OpConstant))
-		c.emitByte(c.addConstant(NewNumber(n)))
+		c.emitConstantOperand(OpConstant, c.addConstant(NewNumber(n)))
 		return nil
 	}
 	if n, ok := v.(int); ok {
-		c.emitByte(byte(OpConstant))
-		c.emitByte(c.addConstant(NewNumber(float64(n))))
+		c.emitConstantOperand(OpConstant, c.addConstant(NewNumber(float64(n))))
 		return nil
 	}
 
@@ -608,14 +595,12 @@ func (c *Compiler) compileValue(v interface{}) error {
 				c.emitByte(byte(OpGetLocal))
 				c.emitByte(byte(idx))
 			} else {
-				c.emitByte(byte(OpGetGlobal))
-				c.emitByte(c.addConstant(NewString(rootName)))
+				c.emitConstantOperand(OpGetGlobal, c.addConstant(NewString(rootName)))
 			}
 
 			// Handle nested properties: .0, .name, etc.
 			for i := 1; i < len(path); i++ {
-				c.emitByte(byte(OpAccessProperty))
-				c.emitByte(c.addConstant(NewString(path[i])))
+				c.emitConstantOperand(OpAccessProperty, c.addConstant(NewString(path[i])))
 			}
 			return nil
 		}
@@ -655,31 +640,23 @@ func (c *Compiler) compileValue(v interface{}) error {
 
 		// Number?
 		if f, err := strconv.ParseFloat(s, 64); err == nil {
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewNumber(f)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewNumber(f)))
 			return nil
 		}
 		// String literal (Strip quotes)
 		if len(s) >= 2 && ((s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'')) {
 			s = s[1 : len(s)-1]
 		}
-		c.emitByte(byte(OpConstant))
-		c.emitByte(c.addConstant(NewString(s)))
+		c.emitConstantOperand(OpConstant, c.addConstant(NewString(s)))
 		return nil
 	}
 	// Fallback raw values
-	c.emitByte(byte(OpConstant))
-	c.emitByte(c.addConstant(NewValue(v)))
+	c.emitConstantOperand(OpConstant, c.addConstant(NewValue(v)))
 	return nil
 }
 
 func (c *Compiler) emitByte(b byte) {
 	c.chunk.Code = append(c.chunk.Code, b)
-}
-
-func (c *Compiler) addConstant(v Value) byte {
-	c.chunk.Constants = append(c.chunk.Constants, v)
-	return byte(len(c.chunk.Constants) - 1)
 }
 
 func (c *Compiler) compileNodeAsValue(node *engine.Node) error {
@@ -688,8 +665,7 @@ func (c *Compiler) compileNodeAsValue(node *engine.Node) error {
 	}
 	if len(node.Children) > 0 {
 		for _, child := range node.Children {
-			c.emitByte(byte(OpConstant))
-			c.emitByte(c.addConstant(NewString(child.Name)))
+			c.emitConstantOperand(OpConstant, c.addConstant(NewString(child.Name)))
 			if err := c.compileNodeAsValue(child); err != nil {
 				return err
 			}
@@ -739,4 +715,54 @@ func splitExpression(s, op string) (string, string, bool) {
 	}
 
 	return "", "", false
+}
+
+func (c *Compiler) addConstant(val Value) int {
+	c.chunk.Constants = append(c.chunk.Constants, val)
+	return len(c.chunk.Constants) - 1
+}
+
+// emitConstantOperand automatically chooses between Short and Long opcodes
+func (c *Compiler) emitConstantOperand(op OpCode, idx int) {
+	if idx > 255 {
+		// Use Long variant
+		switch op {
+		case OpConstant:
+			c.emitByte(byte(OpConstantLong))
+		case OpGetGlobal:
+			c.emitByte(byte(OpGetGlobalLong))
+		case OpSetGlobal:
+			c.emitByte(byte(OpSetGlobalLong))
+		case OpCallSlot:
+			// Expects explicit handling in emitCallSlot, but if called here:
+			// This case might be invalid as OpCallSlot takes explicit ArgCount?
+			// But if used generically:
+			c.emitByte(byte(OpCallSlotLong))
+		case OpAccessProperty:
+			c.emitByte(byte(OpAccessPropertyLong))
+		default:
+			// Fallback (or panic)
+			panic(fmt.Sprintf("No Long variant for opcode %v", op))
+		}
+		// Emit 16-bit index (Big Endian)
+		c.emitByte(byte((idx >> 8) & 0xff))
+		c.emitByte(byte(idx & 0xff))
+	} else {
+		// Use Short variant
+		c.emitByte(byte(op))
+		c.emitByte(byte(idx))
+	}
+}
+
+func (c *Compiler) emitCallSlot(name string, argCount int) {
+	idx := c.addConstant(NewString(name))
+	if idx > 255 {
+		c.emitByte(byte(OpCallSlotLong))
+		c.emitByte(byte((idx >> 8) & 0xff))
+		c.emitByte(byte(idx & 0xff))
+	} else {
+		c.emitByte(byte(OpCallSlot))
+		c.emitByte(byte(idx))
+	}
+	c.emitByte(byte(argCount))
 }

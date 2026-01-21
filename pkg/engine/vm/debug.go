@@ -23,8 +23,17 @@ func (c *Chunk) DisassembleInstruction(offset int) int {
 		OpLogicalOr, OpLogicalAnd, OpLogicalNot, OpStop:
 		return simpleInstruction(instruction.String(), offset)
 
-	case OpConstant, OpGetGlobal, OpSetGlobal, OpCallSlot, OpAccessProperty:
+	case OpConstant, OpGetGlobal, OpSetGlobal, OpAccessProperty:
 		return constantInstruction(instruction.String(), c, offset)
+
+	case OpConstantLong, OpGetGlobalLong, OpSetGlobalLong, OpAccessPropertyLong:
+		return constantLongInstruction(instruction.String(), c, offset)
+
+	case OpCallSlot:
+		return callSlotInstruction(instruction.String(), c, offset)
+
+	case OpCallSlotLong:
+		return callSlotLongInstruction(instruction.String(), c, offset)
 
 	case OpGetLocal, OpSetLocal, OpCall, OpMakeMap, OpMakeList:
 		return byteInstruction(instruction.String(), c, offset)
@@ -52,6 +61,32 @@ func constantInstruction(name string, chunk *Chunk, offset int) int {
 	fmt.Print(chunk.Constants[constant])
 	fmt.Printf("'\n")
 	return offset + 2
+}
+
+func constantLongInstruction(name string, chunk *Chunk, offset int) int {
+	constant := uint16(chunk.Code[offset+1])<<8 | uint16(chunk.Code[offset+2])
+	fmt.Printf("%-16s %4d '", name, constant)
+	fmt.Print(chunk.Constants[constant])
+	fmt.Printf("'\n")
+	return offset + 3
+}
+
+func callSlotInstruction(name string, chunk *Chunk, offset int) int {
+	constant := chunk.Code[offset+1]
+	argCount := chunk.Code[offset+2]
+	fmt.Printf("%-16s %4d '", name, constant)
+	fmt.Print(chunk.Constants[constant])
+	fmt.Printf("' args(%d)\n", argCount)
+	return offset + 3
+}
+
+func callSlotLongInstruction(name string, chunk *Chunk, offset int) int {
+	constant := uint16(chunk.Code[offset+1])<<8 | uint16(chunk.Code[offset+2])
+	argCount := chunk.Code[offset+3]
+	fmt.Printf("%-16s %4d '", name, constant)
+	fmt.Print(chunk.Constants[constant])
+	fmt.Printf("' args(%d)\n", argCount)
+	return offset + 4
 }
 
 func byteInstruction(name string, chunk *Chunk, offset int) int {

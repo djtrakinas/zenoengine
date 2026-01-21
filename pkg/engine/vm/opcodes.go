@@ -67,6 +67,13 @@ const (
 	// Exception Handling [NEW]
 	OpTry    // jump_offset -> (Push catch frame)
 	OpEndTry // (Pop catch frame)
+
+	// Long Variants (16-bit operands for > 256 constants) [NEW]
+	OpConstantLong
+	OpGetGlobalLong
+	OpSetGlobalLong
+	OpCallSlotLong
+	OpAccessPropertyLong
 )
 
 func (o OpCode) String() string {
@@ -145,6 +152,16 @@ func (o OpCode) String() string {
 		return "OpTry"
 	case OpEndTry:
 		return "OpEndTry"
+	case OpConstantLong:
+		return "OpConstantLong"
+	case OpGetGlobalLong:
+		return "OpGetGlobalLong"
+	case OpSetGlobalLong:
+		return "OpSetGlobalLong"
+	case OpCallSlotLong:
+		return "OpCallSlotLong"
+	case OpAccessPropertyLong:
+		return "OpAccessPropertyLong"
 	default:
 		return fmt.Sprintf("OpUnknown(%d)", byte(o))
 	}
