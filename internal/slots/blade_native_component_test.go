@@ -12,7 +12,7 @@ import (
 
 func TestNativeBladeComponents(t *testing.T) {
 	// Setup
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng)
 	
 	os.MkdirAll("views/components", 0755)

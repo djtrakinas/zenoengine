@@ -12,7 +12,7 @@ import (
 
 func TestNativeSwitch(t *testing.T) {
 	// 1. Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng) // Native
 
 	// Register switch logic if needed (or rely on native transpiled nodes)

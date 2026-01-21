@@ -12,7 +12,7 @@ import (
 
 func TestNativeConditionals(t *testing.T) {
 	// 1. Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng) // Native
 	
 	// Register logic slots if we use them, or rely on native transpiler handling

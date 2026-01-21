@@ -100,7 +100,7 @@ func TestVMComplexSlot(t *testing.T) {
 	}
 
 	// Mock Engine Registry
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	called := false
 	eng.Register("http.response", func(ctx context.Context, n *engine.Node, s *engine.Scope) error {
 		called = true
@@ -466,7 +466,7 @@ func TestVMPOSStress(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	scope := engine.NewScope(nil)
 	vm := newTestVM(eng, scope)
 
@@ -606,7 +606,7 @@ func TestVMNestedSlotArgs(t *testing.T) {
 	}
 
 	called := false
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	eng.Register("mock.func", func(ctx context.Context, n *engine.Node, s *engine.Scope) error {
 		called = true
 		// Verify we can find "nested" inside "config"
@@ -672,7 +672,7 @@ func runTestScriptReturnVM(t *testing.T, src string) (*VM, *engine.Scope) {
 		t.Fatal(err)
 	}
 
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	scope := engine.NewScope(nil)
 	vm := newTestVM(eng, scope)
 

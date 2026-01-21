@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"zeno/internal/app"
+	"zeno/pkg/adapters"
 	"zeno/pkg/dbmanager"
 	"zeno/pkg/engine"
 	"zeno/pkg/engine/vm"
@@ -64,7 +65,10 @@ func HandleRun(args []string) {
 	}
 
 	dbMgr := dbmanager.NewDBManager()
-	eng := engine.NewEngine()
+
+	// [PORTABILITY] Inject GoHostAdapter
+	adapter := adapters.NewGoHostAdapter(dbMgr)
+	eng := engine.NewEngine(adapter)
 
 	// Setup DB Connection
 	dbDriver := os.Getenv("DB_DRIVER")

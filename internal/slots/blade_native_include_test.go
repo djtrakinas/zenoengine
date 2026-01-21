@@ -12,7 +12,7 @@ import (
 
 func TestNativeInclude(t *testing.T) {
 	// 1. Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng) // Native
 	
 	// 2. Mock Views

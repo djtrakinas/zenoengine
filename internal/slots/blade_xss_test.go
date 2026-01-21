@@ -12,7 +12,7 @@ import (
 
 func TestBladeXSSProtection(t *testing.T) {
 	// Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng)
 	RegisterLogicSlots(eng)
 

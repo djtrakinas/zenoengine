@@ -109,7 +109,7 @@ func main() {
 	ctxWorker, cancelWorker := context.WithCancel(context.Background())
 
 	if os.Getenv("WORKER_ENABLED") == "true" {
-		workerEng := engine.NewEngine()
+		workerEng := engine.NewEngine(nil)
 		app.RegisterAllSlots(workerEng, nil, dbMgr, queue, nil)
 		slog.Info("👷 Starting Workers...")
 		queues := appCtx.WorkerQueues // Leave empty if not configured

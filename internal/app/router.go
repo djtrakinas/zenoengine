@@ -104,7 +104,7 @@ func BuildRouter(app *AppContext) (*chi.Mux, error) {
 	r.Handle("/metrics", promhttp.Handler())
 
 	// 4. Update signatures
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterAllSlots(eng, r, app.DBMgr, app.Queue, func(queues []string) {
 		app.WorkerQueues = queues
 		slog.Info("🔧 Worker Configuration Updated", "queues", queues)

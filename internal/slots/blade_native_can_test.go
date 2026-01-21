@@ -12,7 +12,7 @@ import (
 
 func TestNativeCanDirective(t *testing.T) {
 	// Setup
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterLogicSlots(eng)
 	RegisterBladeSlots(eng)
 	

@@ -8,7 +8,7 @@ import (
 
 // BenchmarkASTWalker measures the current tree-walking interpreter
 func BenchmarkASTWalker(b *testing.B) {
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	node := &engine.Node{
 		Name:  "$x",
 		Value: "10 + 20",

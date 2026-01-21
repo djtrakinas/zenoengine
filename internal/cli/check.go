@@ -21,7 +21,7 @@ func HandleCheck(args []string) {
 	}
 
 	// Setup Engine and Register Slots (to get metadata)
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	// Skip DB/Queue setup for check, pass nil
 	app.RegisterAllSlots(eng, nil, nil, nil, nil)
 

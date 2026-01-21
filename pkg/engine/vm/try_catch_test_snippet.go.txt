@@ -74,7 +74,7 @@ func runTestScriptReturnVM(t *testing.T, src string) (*VM, *engine.Scope) {
 
 	vm := NewVM()
 	scope := engine.NewScope(nil)
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	ctx := context.WithValue(context.Background(), "engine", eng)
 
 	err = vm.Run(ctx, chunk, scope)

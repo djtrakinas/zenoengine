@@ -12,7 +12,7 @@ import (
 
 func TestNativeAdvancedLoops(t *testing.T) {
 	// 1. Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterLogicSlots(eng) // Ensure logic.go slots (with break/continue support) are loaded
 	RegisterBladeSlots(eng) // Registers blade specific slots
 

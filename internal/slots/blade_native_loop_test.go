@@ -12,7 +12,7 @@ import (
 
 func TestNativeLoopVariable(t *testing.T) {
 	// 1. Setup Engine
-	eng := engine.NewEngine()
+	eng := engine.NewEngine(nil)
 	RegisterBladeSlots(eng) // Native
 	RegisterLogicSlots(eng) // For loop
 	
