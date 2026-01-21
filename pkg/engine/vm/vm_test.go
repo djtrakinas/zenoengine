@@ -1,6 +1,7 @@
 package vm
 
 import (
+	"bytes"
 	"context"
 	"testing"
 	"zeno/pkg/engine"
@@ -119,5 +120,93 @@ func TestVMComplexSlot(t *testing.T) {
 
 	if !called {
 		t.Error("http.response slot was not called")
+	}
+}
+func TestVMControlFlow(t *testing.T) {
+	// AST:
+	// if: $x == 10
+	//   then:
+	//     $res: "yes"
+	//   else:
+	//     $res: "no"
+	node := &engine.Node{
+		Name:  "if",
+		Value: "$x == 10",
+		Children: []*engine.Node{
+			{
+				Name: "then",
+				Children: []*engine.Node{
+					{Name: "$res", Value: "'yes'"},
+				},
+			},
+			{
+				Name: "else",
+				Children: []*engine.Node{
+					{Name: "$res", Value: "'no'"},
+				},
+			},
+		},
+	}
+
+	compiler := NewCompiler()
+	chunk, err := compiler.Compile(node)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	vm := NewVM()
+
+	// Case 1: x == 10
+	scope1 := engine.NewScope(nil)
+	scope1.Set("x", 10.0)
+	err = vm.Run(context.Background(), chunk, scope1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res1, _ := scope1.Get("res")
+	if res1 != "yes" {
+		t.Errorf("Expected 'yes', got %v", res1)
+	}
+
+	// Case 2: x != 10
+	scope2 := engine.NewScope(nil)
+	scope2.Set("x", 20.0)
+	err = vm.Run(context.Background(), chunk, scope2)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res2, _ := scope2.Get("res")
+	if res2 != "no" {
+		t.Errorf("Expected 'no', got %v", res2)
+	}
+}
+
+func TestVMSerialization(t *testing.T) {
+	chunk := &Chunk{
+		Code: []byte{byte(OpConstant), 0, byte(OpReturn)},
+		Constants: []Value{
+			NewString("hello"),
+		},
+		LocalNames: []string{"var1"},
+	}
+
+	var buf bytes.Buffer
+	if err := chunk.Serialize(&buf); err != nil {
+		t.Fatal(err)
+	}
+
+	decoded, err := DeserializeChunk(&buf)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !bytes.Equal(chunk.Code, decoded.Code) {
+		t.Error("Code mismatch after serialization")
+	}
+	if len(chunk.Constants) != len(decoded.Constants) || decoded.Constants[0].AsPtr.(string) != "hello" {
+		t.Error("Constants mismatch after serialization")
+	}
+	if len(chunk.LocalNames) != len(decoded.LocalNames) || decoded.LocalNames[0] != "var1" {
+		t.Error("LocalNames mismatch after serialization")
 	}
 }

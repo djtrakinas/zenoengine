@@ -1,7 +1,9 @@
 package vm
 
 import (
+	"encoding/binary"
 	"fmt"
+	"io"
 )
 
 type ValueType int
@@ -20,6 +22,71 @@ type Value struct {
 	Type  ValueType
 	AsNum float64
 	AsPtr interface{} // Used for strings and complex objects
+}
+
+// Serialize writes a Value to a binary stream.
+func (v Value) Serialize(w io.Writer) error {
+	// 1. Type
+	if err := binary.Write(w, binary.LittleEndian, uint8(v.Type)); err != nil {
+		return err
+	}
+
+	// 2. Data based on type
+	switch v.Type {
+	case ValNil:
+		return nil
+	case ValBool, ValNumber:
+		return binary.Write(w, binary.LittleEndian, v.AsNum)
+	case ValString:
+		s := v.AsPtr.(string)
+		if err := binary.Write(w, binary.LittleEndian, uint32(len(s))); err != nil {
+			return err
+		}
+		_, err := w.Write([]byte(s))
+		return err
+	case ValObject:
+		return fmt.Errorf("cannot serialize complex objects yet")
+	default:
+		return fmt.Errorf("unknown value type")
+	}
+}
+
+// DeserializeValue reads a Value from a binary stream.
+func DeserializeValue(r io.Reader) (Value, error) {
+	var t uint8
+	if err := binary.Read(r, binary.LittleEndian, &t); err != nil {
+		return Value{}, err
+	}
+
+	vt := ValueType(t)
+	switch vt {
+	case ValNil:
+		return NewNil(), nil
+	case ValBool:
+		var n float64
+		if err := binary.Read(r, binary.LittleEndian, &n); err != nil {
+			return Value{}, err
+		}
+		return NewBool(n > 0), nil
+	case ValNumber:
+		var n float64
+		if err := binary.Read(r, binary.LittleEndian, &n); err != nil {
+			return Value{}, err
+		}
+		return NewNumber(n), nil
+	case ValString:
+		var l uint32
+		if err := binary.Read(r, binary.LittleEndian, &l); err != nil {
+			return Value{}, err
+		}
+		buf := make([]byte, l)
+		if _, err := io.ReadFull(r, buf); err != nil {
+			return Value{}, err
+		}
+		return NewString(string(buf)), nil
+	default:
+		return Value{}, fmt.Errorf("unsupported value type: %d", vt)
+	}
 }
 
 func (v Value) String() string {

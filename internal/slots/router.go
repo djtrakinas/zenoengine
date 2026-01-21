@@ -158,26 +158,78 @@ func RegisterRouterSlots(eng *engine.Engine, rootRouter *chi.Mux) {
 			// [NEW] 7. Inject Auth from Chi middleware context to ZenoLang scope
 			// This bridges native Chi middleware (MultiTenantAuth) to ZenoLang scope
 			middleware.InjectAuthToScope(r, reqScope)
-			// [NEW] 8. EXECUTION (ZenoVM with AST Fallback)
-			// Try to compile or get cached bytecode for this route
-			// NOTE: Compilation is fast, but in production we'd cache the Chunk.
-			compiler := vm.NewCompiler()
-			chunk, err := compiler.Compile(&engine.Node{Name: "root", Children: children})
+			// [NEW] 8. EXECUTION (ZenoVM with Caching & AST Fallback)
+			// Root node for this route's logic
+			rootNode := &engine.Node{Name: "root", Children: children}
 
-			if err == nil {
+			// [NEW] AOT: Try to load from .zbc file if available
+			var chunk *vm.Chunk
+			var zbcApplied bool
+
+			if len(children) > 0 && children[0].Filename != "" {
+				sourceFile := children[0].Filename
+				zbcFile := sourceFile + ".zbc"
+
+				// 1. Memory Cache First
+				if rootNode.Bytecode != nil {
+					chunk = rootNode.Bytecode.(*vm.Chunk)
+				} else {
+					// 2. Try Disk Cache (.zbc)
+					if info, err := os.Stat(zbcFile); err == nil {
+						// Check if .zbc is newer than source
+						if sInfo, sErr := os.Stat(sourceFile); sErr == nil && info.ModTime().After(sInfo.ModTime()) {
+							if loaded, lErr := vm.LoadFromFile(zbcFile); lErr == nil {
+								chunk = loaded
+								rootNode.Bytecode = chunk
+								zbcApplied = true
+							}
+						}
+					}
+				}
+
+				// 3. Compile and Save if still no chunk
+				if chunk == nil {
+					compiler := vm.NewCompiler()
+					if c, err := compiler.Compile(rootNode); err == nil {
+						chunk = c
+						rootNode.Bytecode = chunk
+						// Save for next time (Async might be better, but sync is safer for now)
+						chunk.SaveToFile(zbcFile)
+					}
+				}
+			} else {
+				// Fallback for dynamic nodes without filenames
+				if rootNode.Bytecode != nil {
+					chunk = rootNode.Bytecode.(*vm.Chunk)
+				} else {
+					compiler := vm.NewCompiler()
+					if c, err := compiler.Compile(rootNode); err == nil {
+						chunk = c
+						rootNode.Bytecode = chunk
+					}
+				}
+			}
+
+			if zbcApplied {
+				// Log once per route for visibility (optional)
+				// fmt.Printf("   🚀 [AOT] Loaded %s.zbc\n", children[0].Filename)
+			}
+
+			var execErr error
+			if chunk != nil {
 				v := vm.NewVM()
-				err = v.Run(timeoutCtx, chunk, reqScope)
+				execErr = v.Run(timeoutCtx, chunk, reqScope)
 			} else {
 				// Fallback to AST Walker if compiler fails
 				for _, child := range children {
-					if err = eng.Execute(timeoutCtx, child, reqScope); err != nil {
+					if execErr = eng.Execute(timeoutCtx, child, reqScope); execErr != nil {
 						break
 					}
 				}
 			}
 
 			// Handle Errors
-			if err != nil {
+			if execErr != nil {
 				// [NEW] Handle ErrReturn (Normal Halt)
 				if errors.Is(err, ErrReturn) || strings.Contains(err.Error(), "return") {
 					return

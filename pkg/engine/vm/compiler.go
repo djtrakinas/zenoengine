@@ -5,10 +5,16 @@ import (
 	"strconv"
 	"strings"
 	"zeno/pkg/engine"
+	"zeno/pkg/utils/coerce"
 )
 
+type Local struct {
+	Name string
+}
+
 type Compiler struct {
-	chunk *Chunk
+	chunk  *Chunk
+	locals []Local
 }
 
 func NewCompiler() *Compiler {
@@ -17,6 +23,7 @@ func NewCompiler() *Compiler {
 			Code:      []byte{},
 			Constants: []Value{},
 		},
+		locals: []Local{},
 	}
 }
 
@@ -26,6 +33,13 @@ func (c *Compiler) Compile(node *engine.Node) (*Chunk, error) {
 		return nil, err
 	}
 	c.emitByte(byte(OpReturn))
+
+	// Transfer local names for VM sync
+	c.chunk.LocalNames = make([]string, len(c.locals))
+	for i, l := range c.locals {
+		c.chunk.LocalNames[i] = l.Name
+	}
+
 	return c.chunk, nil
 }
 
@@ -35,12 +49,22 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 	// If it's a variable assignment: $varName: value
 	if strings.HasPrefix(node.Name, "$") {
 		varName := node.Name[1:]
-		// Evaluate value (simplified for now: only constants)
+		// Evaluate value
 		if err := c.compileValue(node.Value); err != nil {
 			return err
 		}
-		c.emitByte(byte(OpSetGlobal))
-		c.emitByte(c.addConstant(NewString(varName)))
+
+		// Local Variable Optimization:
+		// Check if it's already a local
+		if idx := c.resolveLocal(varName); idx != -1 {
+			c.emitByte(byte(OpSetLocal))
+			c.emitByte(byte(idx))
+		} else {
+			// Add as a new local
+			c.locals = append(c.locals, Local{Name: varName})
+			c.emitByte(byte(OpSetLocal))
+			c.emitByte(byte(len(c.locals) - 1))
+		}
 		return nil
 	}
 
@@ -64,8 +88,53 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 		}
 	}
 
+	// If it's an "if" statement
+	if node.Name == "if" {
+		// 1. Compile Expression (Condition)
+		if err := c.compileExpression(coerce.ToString(node.Value)); err != nil {
+			return err
+		}
+
+		// 2. Jump if False to Else or End
+		jumpIfFalsePos := c.emitJump(OpJumpIfFalse)
+
+		// 3. Compile "then" block
+		for _, child := range node.Children {
+			if child.Name == "then" {
+				for _, subchild := range child.Children {
+					if err := c.compileNode(subchild); err != nil {
+						return err
+					}
+				}
+				break
+			}
+		}
+
+		// 4. Jump over "else" block (if exists)
+		jumpOverElsePos := c.emitJump(OpJump)
+
+		// 5. Backpatch JumpIfFalse
+		c.patchJump(jumpIfFalsePos)
+
+		// 6. Compile "else" block (if exists)
+		for _, child := range node.Children {
+			if child.Name == "else" {
+				for _, subchild := range child.Children {
+					if err := c.compileNode(subchild); err != nil {
+						return err
+					}
+				}
+				break
+			}
+		}
+
+		// 7. Backpatch JumpOverElse
+		c.patchJump(jumpOverElsePos)
+		return nil
+	}
+
 	// If it's a regular slot call (e.g., http.response)
-	if node.Name != "" && !strings.HasPrefix(node.Name, "$") && node.Name != "root" {
+	if node.Name != "" && !strings.HasPrefix(node.Name, "$") && node.Name != "root" && node.Name != "else" && node.Name != "then" {
 		// Compile children as named arguments
 		for _, child := range node.Children {
 			// Push Name
@@ -86,12 +155,82 @@ func (c *Compiler) compileNode(node *engine.Node) error {
 	return nil
 }
 
+func (c *Compiler) compileExpression(expr string) error {
+	// Simple Expression Parser: $x == 10
+	expr = strings.TrimSpace(expr)
+
+	ops := []string{"==", "!=", ">=", "<=", ">", "<"}
+	for _, op := range ops {
+		if strings.Contains(expr, op) {
+			parts := strings.SplitN(expr, op, 2)
+			left := strings.TrimSpace(parts[0])
+			right := strings.TrimSpace(parts[1])
+
+			if err := c.compileValue(left); err != nil {
+				return err
+			}
+			if err := c.compileValue(right); err != nil {
+				return err
+			}
+
+			switch op {
+			case "==":
+				c.emitByte(byte(OpEqual))
+			case "!=":
+				c.emitByte(byte(OpNotEqual))
+			case ">=":
+				c.emitByte(byte(OpGreaterEqual))
+			case "<=":
+				c.emitByte(byte(OpLessEqual))
+			case ">":
+				c.emitByte(byte(OpGreater))
+			case "<":
+				c.emitByte(byte(OpLess))
+			}
+			return nil
+		}
+	}
+
+	// Default: Single value truthiness
+	return c.compileValue(expr)
+}
+
+func (c *Compiler) emitJump(op OpCode) int {
+	c.emitByte(byte(op))
+	c.emitByte(0xff) // Placeholder for 16-bit offset
+	c.emitByte(0xff)
+	return len(c.chunk.Code) - 2
+}
+
+func (c *Compiler) patchJump(pos int) {
+	// Calculate offset from instruction after jump to current end
+	offset := len(c.chunk.Code) - pos - 2
+	c.chunk.Code[pos] = byte((offset >> 8) & 0xff)
+	c.chunk.Code[pos+1] = byte(offset & 0xff)
+}
+
+func (c *Compiler) resolveLocal(name string) int {
+	for i := len(c.locals) - 1; i >= 0; i-- {
+		if c.locals[i].Name == name {
+			return i
+		}
+	}
+	return -1
+}
+
 func (c *Compiler) compileValue(v interface{}) error {
 	if s, ok := v.(string); ok {
+		s = strings.TrimSpace(s)
 		// Variable reference?
 		if strings.HasPrefix(s, "$") {
-			c.emitByte(byte(OpGetGlobal))
-			c.emitByte(c.addConstant(NewString(s[1:])))
+			varName := s[1:]
+			if idx := c.resolveLocal(varName); idx != -1 {
+				c.emitByte(byte(OpGetLocal))
+				c.emitByte(byte(idx))
+			} else {
+				c.emitByte(byte(OpGetGlobal))
+				c.emitByte(c.addConstant(NewString(varName)))
+			}
 			return nil
 		}
 		// Number?
@@ -100,7 +239,10 @@ func (c *Compiler) compileValue(v interface{}) error {
 			c.emitByte(c.addConstant(NewNumber(f)))
 			return nil
 		}
-		// String literal
+		// String literal (Strip quotes)
+		if len(s) >= 2 && ((s[0] == '"' && s[len(s)-1] == '"') || (s[0] == '\'' && s[len(s)-1] == '\'')) {
+			s = s[1 : len(s)-1]
+		}
 		c.emitByte(byte(OpConstant))
 		c.emitByte(c.addConstant(NewString(s)))
 		return nil
